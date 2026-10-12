@@ -17,7 +17,7 @@ RULES
 - Ignore noise: merge commits, version bumps, formatting-only, lockfile updates, unless they are the only work done.
 - Mention the repo only if more than one repo has activity.
 - Do not include SHAs, timestamps, or line counts unless asked.
-- If there are no commits, output exactly: "No activity today."
+- If there are no commits, output exactly "No activity today." translated into ${language}, and nothing else.
 
 OUTPUT FORMAT (Markdown)
 ## Daily Report: {date}
@@ -33,6 +33,8 @@ OUTPUT FORMAT (Markdown)
 
 **Notes**
 - Only if something is risky or notable (large refactor, breaking change, migration). Otherwise omit.
+
+(Translate the headings "Daily Report", "Summary", "Done", "In progress", "Notes" into {language}.)
 
 STYLE
 Past tense, plain language, no filler, no emojis. Max 150 words total.`;
