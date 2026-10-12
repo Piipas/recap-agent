@@ -89,7 +89,7 @@ export const getGitHubToken = async () => {
 
   const auth = createOAuthDeviceAuth({
     clientId,
-    scopes: ["repo"],
+    scopes: ["repo", "read:user"],
     onVerification: async ({ verification_uri, user_code }) => {
       console.log("Authorize Recap Agent in your browser:");
       console.log(`  ${verification_uri}`);

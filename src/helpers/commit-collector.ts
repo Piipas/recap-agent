@@ -44,5 +44,6 @@ export const CommitsCollector = async (username: string, ownedBy: OwnedByType[] 
     return commits.flat();
   } catch (error) {
     console.error("Error collecting commits:", error);
+    throw error;
   }
 };
