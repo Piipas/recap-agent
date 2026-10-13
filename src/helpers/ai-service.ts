@@ -1,3 +1,5 @@
+import { setTimeout } from "node:timers/promises";
+
 const getPrompt = (commits: any[], language: string = "en") => {
   return `You write daily work reports from GitHub commits.
 
@@ -41,25 +43,35 @@ Past tense, plain language, no filler, no emojis. Max 150 words total.`;
 };
 
 export const aiService = async (commits: any[], language: string = "en") => {
+  let isError = true;
   try {
-    const response = await fetch("https://api.groq.com/openai/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-oss-120b",
-        input: getPrompt(commits, language),
-        metadata: {
-          source: "recap-agent",
-          version: "1.0.0",
+    while (isError) {
+      const response = await fetch("https://api.groq.com/openai/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
         },
-      }),
-    });
+        body: JSON.stringify({
+          model: "openai/gpt-oss-120b",
+          input: getPrompt(commits, language),
+          metadata: {
+            source: "recap-agent",
+            version: "1.0.0",
+          },
+        }),
+      });
 
-    const data = await response.json();
-    return data;
+      const data = await response.json();
+
+      if (data.error) {
+        console.warn("AI service error, retrying in 15 seconds...");
+        await setTimeout(15000); // Wait for 15 seconds before retrying
+      } else {
+        isError = false;
+        return data;
+      }
+    }
   } catch (error) {
     console.error("Error calling AI service:", error);
     throw error;

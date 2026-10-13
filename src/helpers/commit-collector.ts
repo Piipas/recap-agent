@@ -3,9 +3,14 @@ import { getOrgRepos, getUserRepos } from "./repos-collector.js";
 
 type OwnedByType = "user" | "org";
 
-export const CommitsCollector = async (username: string, ownedBy: OwnedByType[] = ["user"], orgs: string[] = []) => {
+export const CommitsCollector = async (
+  username: string,
+  ownedBy: OwnedByType[] = ["user"],
+  orgs: string[] = [],
+  day: Date,
+) => {
   try {
-    const now = new Date();
+    const now = day ? new Date(day) : new Date();
 
     const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
