@@ -4,7 +4,7 @@ import { getGitHubToken, logoutGitHub } from "./src/lib/github-auth.js";
 import { octokit, setOctokitToken } from "./src/lib/octokit.js";
 import type { OwnedByType } from "./src/types.js";
 import { aiService } from "./src/helpers/ai-service.js";
-import { languageCodes } from "./consts.js";
+import { languageCodes } from "./src/consts.js";
 
 const optionsSettings: ParseArgsOptionsConfig = {
   "repo-type": { type: "string", short: "t", default: "user" },

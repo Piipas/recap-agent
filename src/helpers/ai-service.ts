@@ -66,7 +66,7 @@ export const aiService = async (commits: any[], language: string = "en") => {
 
       if (data.error) {
         console.warn("AI service error, retrying in 15 seconds...");
-        await setTimeout(15000); // Wait for 15 seconds before retrying
+        await setTimeout(15000);
       } else {
         isError = false;
         return data;
