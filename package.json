@@ -1,6 +1,6 @@
 {
   "name": "recap-agent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Agent to send Recap to managers at the end of the day!",
   "license": "MIT",
   "author": "@piipas",
