@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { parseArgs, type ParseArgsOptionsConfig } from "node:util";
 import { CommitsCollector } from "./src/helpers/commit-collector.js";
 import { getGitHubToken, logoutGitHub } from "./src/lib/github-auth.js";

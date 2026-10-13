@@ -17,5 +17,8 @@
   "devDependencies": {
     "@types/node": "^26.6.3",
     "prettier": "^3.9.10"
+  },
+  "bin": {
+    "recap-agent": "./dist/index.js"
   }
 }
