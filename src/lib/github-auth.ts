@@ -4,6 +4,8 @@ import { chmod, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
+const GITHUB_CLIENT_ID = "Ov23li1Sqebp4LoXSVFH";
+
 const getCredentialsPath = () => {
   const configDirectory =
     process.platform === "win32"
@@ -74,13 +76,11 @@ export const logoutGitHub = async () => {
 };
 
 export const getGitHubToken = async () => {
-  if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
-
   const credentialsPath = getCredentialsPath();
   const savedToken = await readSavedToken(credentialsPath);
   if (savedToken) return savedToken;
 
-  const clientId = process.env.GITHUB_CLIENT_ID;
+  const clientId = GITHUB_CLIENT_ID;
   if (!clientId) {
     throw new Error(
       "GitHub is not connected. Set GITHUB_CLIENT_ID to an OAuth App client ID with device flow enabled, then run Recap Agent again.",
@@ -89,7 +89,7 @@ export const getGitHubToken = async () => {
 
   const auth = createOAuthDeviceAuth({
     clientId,
-    scopes: ["repo", "read:user"],
+    scopes: ["repo", "read:user", "read:org"],
     onVerification: async ({ verification_uri, user_code }) => {
       console.log("Authorize Recap Agent in your browser:");
       console.log(`  ${verification_uri}`);

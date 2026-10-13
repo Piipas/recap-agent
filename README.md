@@ -1,6 +1,6 @@
 # Recap Agent
 
-A lightweight CLI that gathers your GitHub activity for the current day and turns it into a concise, manager-friendly work recap.
+A CLI tool that inspects your GitHub activity for the current day and converts it into a concise, leadership-friendly recap.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d)](https://nodejs.org/)
@@ -8,35 +8,28 @@ A lightweight CLI that gathers your GitHub activity for the current day and turn
 
 ## Overview
 
-Recap Agent helps you quickly summarize your daily development work without manually reviewing every commit. It authenticates with GitHub, reads commits created during the current UTC day, and sends them to an AI model that produces a short daily report in markdown.
+Recap Agent is designed for developers who want a quick end-of-day summary without manually reviewing commit history. It authenticates with GitHub, reads the commits created in the current UTC day, and uses an AI model to generate a short, readable status report in markdown format.
 
-This is useful for:
+The tool is especially useful for:
 
-- end-of-day summaries for managers or leads
-- quick team updates without writing a full status report
-- translating work summaries into different languages
-- tracking activity across personal and organization repositories
+- preparing daily team or manager updates
+- summarizing work across multiple repositories
+- generating short status notes in different languages
+- tracking activity across personal and organization-owned repos
 
 ## Features
 
-- Collects commits for the current day from user and organization repositories
-- Supports GitHub OAuth device flow for secure first-time authentication
-- Enables custom filtering via `GITHUB_USERNAME` and `GITHUB_ORGS`
-- Generates a short markdown recap with sections such as Summary, Done, and Notes
-- Supports output in multiple languages using the `--language` flag
-- Can remove saved GitHub credentials with a logout command
-
-## How it works
-
-1. The app authenticates with GitHub using a device flow.
-2. It loads repositories owned by the selected user and any configured organizations.
-3. It fetches commits authored by the current GitHub account for the current UTC day.
-4. It sends the commit payload to Groq-powered AI summarization.
-5. It prints a markdown report directly to the terminal.
+- Fetches commits for a selected day from user-owned and organization-owned repositories
+- Uses GitHub OAuth device flow for secure first-time authentication
+- Supports scoped repo selection with `--repo-type`
+- Accepts a custom date with `--day` for historical reports
+- Produces a concise markdown recap with sections such as Summary, Done, and Notes
+- Supports localized output via the `--language` flag
+- Allows removing saved GitHub credentials with the logout command
 
 ## Requirements
 
-Before using Recap Agent, make sure you have:
+Before using the project, ensure you have:
 
 - Node.js 20 or newer
 - A GitHub OAuth App with Device Flow enabled
@@ -44,92 +37,90 @@ Before using Recap Agent, make sure you have:
 
 ## Installation
 
-Clone the repository and install dependencies:
+For end users, install and run it directly with `npx`:
+
+```bash
+npx recap-agent --help
+```
+
+For local development or contributors:
 
 ```bash
 git clone https://github.com/Piipas/recap-agent.git
 cd recap-agent
 npm install
+npm run build
 ```
 
-## Configuration
+## Quick start
 
-Create a `.env` file in the project root:
-
-```env
-GITHUB_CLIENT_ID=your_github_oauth_app_client_id
-GROQ_API_KEY=your_groq_api_key
-
-# Optional overrides
-GITHUB_USERNAME=your_github_username
-GITHUB_ORGS=org-one,org-two
-GITHUB_TOKEN=your_github_token
+```bash
+npx recap-agent --repo-type "user,org" --language en --groq-api-key YOUR_GROQ_API_KEY
 ```
 
-### Environment variables
-
-| Variable | Required | Description |
-| --- | --- | --- |
-| `GITHUB_CLIENT_ID` | Yes | GitHub OAuth app client ID used for device flow authentication. |
-| `GROQ_API_KEY` | Yes | API key used by the AI summarization layer. |
-| `GITHUB_USERNAME` | No | Overrides the GitHub account used to filter commits. |
-| `GITHUB_ORGS` | No | Comma-separated list of organizations to include in the scan. |
-| `GITHUB_TOKEN` | No | Direct token override. If present, it takes precedence over the saved credentials file. |
+On the first run, the CLI starts the GitHub device flow and guides you through authentication in the browser. No local configuration file is required.
 
 ## GitHub authentication
 
-On the first run, the app performs a GitHub OAuth device flow.
+On first run, Recap Agent uses GitHub's OAuth device flow.
 
 1. Create a GitHub OAuth App.
-2. Enable Device Flow in the app settings.
-3. Set the app's client ID in `GITHUB_CLIENT_ID`.
-4. Run the project.
-5. Open the URL shown in the terminal and enter the displayed one-time code.
+2. Enable Device Flow in the app configuration.
+3. Start the app.
+4. Visit the URL shown in the terminal and enter the displayed code.
 
-The OAuth app should include the `repo` scope when access to private repositories is needed.
+The app requests repository access for commit and repository metadata, and organization coverage depends on the repositories visible to the authenticated account.
 
-The token is saved in the user configuration directory:
+Saved credentials are stored in the user's config directory:
 
 - Windows: `%APPDATA%\recap-agent\credentials.json`
 - Linux/macOS: `$XDG_CONFIG_HOME/recap-agent/credentials.json` or `~/.config/recap-agent/credentials.json`
 
 ## Usage
 
-Run the application from the repository root:
+Run the package from the command line with `npx`:
 
 ```bash
-node --experimental-strip-types index.ts
+npx recap-agent --repo-type "user,org" --language en --groq-api-key YOUR_GROQ_API_KEY
 ```
 
-### Command-line options
+### Required options
+
+| Option | Required | Description |
+| --- | --- | --- |
+| `--groq-api-key` / `-g` | Yes | Groq API key used to generate the daily summary. |
+
+### Optional options
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `--repo-type` / `-t` | `user` | Repository scope to inspect. Accepts `user`, `org`, or a comma-separated combination such as `"user,org"`. |
+| `--language` / `-l` | `en` | Output language for the generated report. Examples: `en`, `fr`, `es`, `de`, `pt`, `ja`. |
+| `--day` / `-d` | today in ISO format | Date to analyze in `YYYY-MM-DD` format. |
+| `--logout` / `-o` | `false` | Removes the locally saved GitHub credentials. |
+| `--help` / `-h` | — | Displays available command-line options. |
+
+### Examples
 
 ```bash
-node --experimental-strip-types index.ts --repo-type "user org" --language en
+npx recap-agent --repo-type "user,org" --language fr --day 2026-10-13 --groq-api-key YOUR_GROQ_API_KEY
 ```
-
-| Option | Description |
-| --- | --- |
-| `--repo-type` / `-t` | Repository scope to inspect. Can be `user`, `org`, or a combination like `"user org"`. |
-| `--language` / `-l` | Output language for the generated report. Example values: `en`, `fr`, `es`, `de`, `pt`, `ja`. |
-| `--logout` / `-o` | Remove the locally saved GitHub credentials. |
-
-### Example
 
 ```bash
-node --experimental-strip-types index.ts --repo-type "user org" --language fr
+npx recap-agent --logout
 ```
 
-This checks personal repositories and the configured org repositories for commits from today and prints a French-language recap.
+The first command generates a French-language recap for the selected date. The second command removes the locally saved GitHub credentials.
 
 ## Logout
 
-To remove saved GitHub credentials:
+To remove the saved GitHub authentication:
 
 ```bash
-node --experimental-strip-types index.ts --logout
+npx recap-agent --logout
 ```
 
-This deletes the local token file without revoking the token on GitHub itself. If `GITHUB_TOKEN` is set in the environment, it remains active until you remove it.
+This deletes the locally stored credential file without revoking the token on GitHub.
 
 ## Example output
 
@@ -149,9 +140,20 @@ Implemented the billing API refresh and improved test coverage for the onboardin
 
 ## Notes
 
-- The tool evaluates commits created during the current UTC day.
-- Merge commits, lockfile churn, and formatting-only changes may be filtered by the summary logic depending on the commit content.
-- The output is intentionally brief and written for quick team or manager updates rather than raw technical reporting.
+- Commit collection is based on the current UTC day.
+- Merge commits, lockfile churn, and formatting-only updates may be ignored by the summary logic depending on the commit content.
+- The generated output is intentionally brief and optimized for fast status communication rather than detailed technical reporting.
+
+## Development
+
+To contribute or modify the project locally:
+
+```bash
+npm install
+npm run build
+```
+
+This compiles the TypeScript source into the `dist` directory for local testing and packaging.
 
 ## License
 

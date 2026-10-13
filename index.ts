@@ -11,6 +11,7 @@ const optionsSettings: ParseArgsOptionsConfig = {
   logout: { type: "boolean", short: "o", default: false },
   language: { type: "string", short: "l", default: "en" },
   day: { type: "string", short: "d", default: new Date().toISOString().split("T")[0] },
+  "groq-api-key": { type: "string", short: "g", default: "" },
 };
 
 const main = async () => {
@@ -21,14 +22,11 @@ const main = async () => {
     const removedCredentials = await logoutGitHub();
     console.log(removedCredentials ? "Saved GitHub credentials removed." : "No saved GitHub credentials found.");
 
-    if (process.env.GITHUB_TOKEN)
-      console.warn("GITHUB_TOKEN is still set and will continue to authenticate future runs.");
-
     return;
   }
 
   // Validate repo-type option
-  const insertedRepoTypes = (options["repo-type"] as string).split(" ").map((v) => v.trim() as OwnedByType);
+  const insertedRepoTypes = (options["repo-type"] as string).split(",").map((v) => v.trim() as OwnedByType);
 
   if (!insertedRepoTypes.every((type) => type === "user" || type === "org"))
     throw new Error("Invalid repo type(s) provided. Valid types are 'user' and 'org'.");
@@ -45,13 +43,19 @@ const main = async () => {
   // Set the date range for commit collection
   const since = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()));
 
+  if (!options["groq-api-key"]) throw new Error("GROQ_API_KEY is not set. Please provide a valid API key.");
+
+  const apiKey = options["groq-api-key"] as string;
+
   console.log("Authenticating with GitHub...");
 
   const token = await getGitHubToken();
   setOctokitToken(token);
 
-  const username = process.env.GITHUB_USERNAME || (await octokit.request("GET /user")).data.login;
-  const orgs = process.env.GITHUB_ORGS ? process.env.GITHUB_ORGS.split(",") : [];
+  const username = (await octokit.request("GET /user")).data.login;
+  const orgs = insertedRepoTypes.includes("org")
+    ? (await octokit.paginate("GET /user/orgs")).map((org) => org.login)
+    : [];
 
   console.log("Collecting commits from GitHub...");
 
@@ -59,7 +63,7 @@ const main = async () => {
 
   if (commits.length) {
     console.log(`Collected ${commits.length} commits. Generating report...`);
-    const report = await aiService(commits, language);
+    const report = await aiService(commits, apiKey, language);
 
     console.log(report.output[1].content[0].text);
   } else {

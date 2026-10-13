@@ -42,7 +42,7 @@ STYLE
 Past tense, plain language, no filler, no emojis. Max 150 words total.`;
 };
 
-export const aiService = async (commits: any[], language: string = "en") => {
+export const aiService = async (commits: any[], apiKey: string, language: string = "en") => {
   let isError = true;
   try {
     while (isError) {
@@ -50,7 +50,7 @@ export const aiService = async (commits: any[], language: string = "en") => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: "openai/gpt-oss-120b",
