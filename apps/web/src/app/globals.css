@@ -128,3 +128,32 @@
     @apply font-sans;
     }
 }
+/* Rendered recap markdown (sanitized HTML from server/recaps/render.ts). */
+@layer components {
+  .recap-content {
+    @apply space-y-3 text-sm leading-relaxed;
+  }
+  .recap-content h1,
+  .recap-content h2,
+  .recap-content h3 {
+    @apply text-foreground text-base font-semibold;
+  }
+  .recap-content h1 {
+    @apply text-lg;
+  }
+  .recap-content ul {
+    @apply list-disc space-y-1 pl-5;
+  }
+  .recap-content ol {
+    @apply list-decimal space-y-1 pl-5;
+  }
+  .recap-content strong {
+    @apply text-foreground font-semibold;
+  }
+  .recap-content code {
+    @apply bg-muted rounded px-1 py-0.5 font-mono text-xs;
+  }
+  .recap-content a {
+    @apply text-primary underline underline-offset-2;
+  }
+}
