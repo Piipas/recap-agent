@@ -121,20 +121,20 @@ enum MailboxProvider {
 
 /// A mailbox the user sends recaps from. Independent of the sign-in provider.
 model Mailbox {
-  id                String           @id @default(cuid())
-  userId            String
-  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider          MailboxProvider
-  providerAccountId String
-  email             String
-  accessTokenEnc    String
-  refreshTokenEnc   String
+  id                   String           @id @default(cuid())
+  userId               String
+  user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider             MailboxProvider
+  providerAccountId    String
+  email                String
+  accessTokenEnc       String
+  refreshTokenEnc      String
   accessTokenExpiresAt DateTime
-  scope             String
-  status            ConnectionStatus @default(ACTIVE)
-  lastError         String?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  scope                String
+  status               ConnectionStatus @default(ACTIVE)
+  lastError            String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   schedules Schedule[]
   recaps    Recap[]
