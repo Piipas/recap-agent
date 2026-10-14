@@ -17,9 +17,6 @@ import { GenerateForm } from "./generate-form";
 
 export const metadata: Metadata = { title: "Recaps" };
 
-// Generation runs inside this page's Server Action (via after()).
-export const maxDuration = 300;
-
 export default async function RecapsPage() {
   const user = await requireUser();
   const [github, groqKey, runs] = await Promise.all([

@@ -69,26 +69,6 @@ export const connectGitHubSource = async (userId: string, code: string, codeVeri
   await prisma.gitHubSource.upsert({ where: { userId }, create: { userId, ...data }, update: data });
 };
 
-/** Returns a usable token, or marks the connection for reconnect and returns null. */
-export const getVerifiedGitHubToken = async (userId: string) => {
-  const source = await prisma.gitHubSource.findUnique({ where: { userId } });
-  if (!source || source.status !== "ACTIVE") return null;
-
-  const token = decryptSecret(source.accessTokenEnc);
-  const response = await fetch("https://api.github.com/user", {
-    headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
-  });
-  if (response.status === 401) {
-    await prisma.gitHubSource.update({
-      where: { userId },
-      data: { status: "NEEDS_RECONNECT", lastError: "GitHub rejected the saved token (revoked or expired)." },
-    });
-    return null;
-  }
-  if (!response.ok) throw new Error(`GitHub API returned ${response.status}`);
-  return token;
-};
-
 export const disconnectGitHubSource = async (userId: string) => {
   const source = await prisma.gitHubSource.findUnique({ where: { userId } });
   if (!source) return;

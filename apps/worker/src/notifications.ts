@@ -1,6 +1,5 @@
-import "server-only";
 import { Resend } from "resend";
-import { env } from "@/env";
+import { env } from "./env";
 
 // Resend is only for messages from Recap Agent to its user. Recaps themselves are
 // always sent from the user's own connected mailbox.
@@ -9,7 +8,7 @@ const resend = new Resend(env.RESEND_API_KEY);
 const escapeHtml = (value: string) =>
   value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 
-const appUrl = (path: string) => new URL(path, env.BETTER_AUTH_URL).toString();
+const appUrl = (path: string) => new URL(path, env.APP_URL).toString();
 
 type Notification = { to: string; subject: string; paragraphs: string[]; action?: { label: string; path: string } };
 

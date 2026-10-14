@@ -2,11 +2,9 @@
 
 import { prisma } from "@recap/db";
 import { revalidatePath } from "next/cache";
-import { after } from "next/server";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/action-result";
 import { isSupportedLanguage } from "@/lib/recap-options";
-import { claimRun, processRun } from "@/server/recaps/runs";
 import { requireUser } from "@/server/session";
 
 const generateSchema = z.object({
@@ -34,7 +32,8 @@ export async function generateRecapAction(_previous: ActionResult | null, formDa
   if (github?.status !== "ACTIVE") return { ok: false, error: "Connect GitHub in Connections first." };
   if (!groqKey) return { ok: false, error: "Add your Groq API key in Connections first." };
 
-  const run = await prisma.recapRun.create({
+  // Queued only: the worker service claims the run and generates the recap.
+  await prisma.recapRun.create({
     data: {
       userId: user.id,
       day: new Date(`${parsed.data.day}T00:00:00Z`),
@@ -43,11 +42,6 @@ export async function generateRecapAction(_previous: ActionResult | null, formDa
     },
   });
 
-  // Generate right after responding; the cron tick picks the run up if this dies.
-  after(async () => {
-    if (await claimRun(run.id)) await processRun(run.id);
-  });
-
   revalidatePath("/recaps");
-  return { ok: true, message: "Generating your recap. It will appear below in a minute." };
+  return { ok: true, message: "Your recap is queued. It will appear below in a minute or two." };
 }

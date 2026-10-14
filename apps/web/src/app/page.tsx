@@ -1,3 +1,4 @@
+import { languageCodes } from "@recap/core/languages";
 import {
   ArrowRight,
   Building2,
@@ -12,7 +13,6 @@ import {
   Terminal,
 } from "lucide-react";
 import Link from "next/link";
-import { languageCodes } from "recap-agent/dist/src/consts.js";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";

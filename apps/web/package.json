@@ -8,8 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@recap/core": "workspace:*",
@@ -23,8 +22,6 @@
     "radix-ui": "^1.8.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "recap-agent": "workspace:*",
-    "resend": "^6.33.0",
     "server-only": "^0.0.1",
     "shadcn": "^4.21.4",
     "sonner": "^2.0.8",
@@ -39,7 +36,6 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "tailwindcss": "^4.3.3",
-    "typescript": "~6.0.3",
-    "vitest": "^5.0.4"
+    "typescript": "~6.0.3"
   }
 }

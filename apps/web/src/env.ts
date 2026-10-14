@@ -16,9 +16,6 @@ const schema = z.object({
   TOKEN_ENCRYPTION_KEY: z
     .base64()
     .refine((value) => Buffer.from(value, "base64").length === 32, "must be 32 bytes, base64-encoded"),
-  RESEND_API_KEY: required,
-  EMAIL_FROM: required,
-  CRON_SECRET: z.string().min(32),
 });
 
 export const env = schema.parse(process.env);

@@ -2,7 +2,7 @@ import { type SendTrigger, prisma } from "@recap/db";
 import { sendFromMailbox } from "../mailboxes/send";
 import { recapEmailHtml } from "./render";
 
-/** A lock older than this outlived its function (limit 300 s) and can be retaken. */
+/** A lock older than this belongs to a process that died mid-send and can be retaken. */
 const LOCK_STALE_MS = 10 * 60_000;
 
 type SendOutcome = { ok: true; recipients: string[] } | { ok: false; error: string };

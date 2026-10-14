@@ -1,36 +1,18 @@
-import "server-only";
 import { isoDay } from "@recap/core/dates";
 import { recapSubject } from "@recap/core/recaps/render";
 import { sendRecap } from "@recap/core/recaps/send";
-import { prisma } from "@recap/db";
-import { toCliRepoType } from "@/lib/recap-options";
-import { getVerifiedGitHubToken } from "@/server/connections/github";
-import { getGroqKey } from "@/server/connections/groq";
-import {
-  notifyAutoSendFailed,
-  notifyAutoSent,
-  notifyRecapReady,
-  notifyRunFailed,
-} from "@/server/email/notifications";
+import { type RepoType, prisma } from "@recap/db";
 import { runRecapCli } from "./cli-runner";
+import { notifyAutoSendFailed, notifyAutoSent, notifyRecapReady, notifyRunFailed } from "./notifications";
+import { getGroqKey, getVerifiedGitHubToken } from "./sources";
 
 const MAX_ATTEMPTS = 3;
-/** A RUNNING run older than this belongs to a function that died (limit is 300 s). */
+/** A RUNNING run older than this belongs to a worker that died (a run is capped at 5 minutes). */
 const STALE_AFTER = "10 minutes";
-
-/** Atomically moves one QUEUED run to RUNNING; false if someone else got it first. */
-export const claimRun = async (runId: string) => {
-  const claimed = await prisma.$queryRaw<{ id: string }[]>`
-    UPDATE "recap_run"
-    SET "status" = 'RUNNING', "startedAt" = now(), "attempts" = "attempts" + 1
-    WHERE "id" = ${runId} AND "status" = 'QUEUED'
-    RETURNING "id"`;
-  return claimed.length === 1;
-};
 
 /**
  * Claims up to `limit` runs: queued ones, plus runs stuck in RUNNING whose function
- * died. SKIP LOCKED lets concurrent cron invocations split the work without overlap.
+ * died. SKIP LOCKED lets concurrent workers split the work without overlap.
  */
 export const claimRuns = async (limit: number) => {
   await prisma.$executeRaw`
@@ -52,6 +34,9 @@ export const claimRuns = async (limit: number) => {
     RETURNING "id"`;
   return claimed.map(({ id }) => id);
 };
+
+/** The CLI's --repo-type values. */
+const toCliRepoType = (type: RepoType) => (type === "USER" ? "user" : "org");
 
 const failRun = (runId: string, error: unknown) =>
   prisma.recapRun.update({

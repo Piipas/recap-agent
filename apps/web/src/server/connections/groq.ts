@@ -1,5 +1,5 @@
 import "server-only";
-import { decryptSecret, encryptSecret } from "@recap/core/crypto";
+import { encryptSecret } from "@recap/core/crypto";
 import { prisma } from "@recap/db";
 
 /** Checks the key against Groq before storing it, so generation never fails on a typo. */
@@ -13,9 +13,4 @@ export const saveGroqKey = async (userId: string, apiKey: string) => {
   const data = { keyEnc: encryptSecret(apiKey), keyHint: apiKey.slice(-4) };
   await prisma.groqKey.upsert({ where: { userId }, create: { userId, ...data }, update: data });
   return { ok: true as const };
-};
-
-export const getGroqKey = async (userId: string) => {
-  const key = await prisma.groqKey.findUnique({ where: { userId } });
-  return key ? decryptSecret(key.keyEnc) : null;
 };

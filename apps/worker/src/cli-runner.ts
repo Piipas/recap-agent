@@ -1,12 +1,12 @@
-import "server-only";
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { type CliOutcome, parseCliOutput } from "./cli-output";
 
-/** Stays below the 300 s function limit of the routes that generate recaps. */
-const CLI_TIMEOUT_MS = 240_000;
+/** The CLI retries Groq errors forever, so every run is capped. */
+const CLI_TIMEOUT_MS = 5 * 60_000;
 
 export type CliRunInput = {
   githubToken: string;
@@ -24,11 +24,8 @@ export class CliRunError extends Error {
   }
 }
 
-const cliEntry = () => {
-  const relative = process.env.RECAP_AGENT_CLI;
-  if (!relative) throw new Error("RECAP_AGENT_CLI is not configured (see next.config.ts)");
-  return path.resolve(process.cwd(), relative);
-};
+/** The workspace CLI's built entry point (its package `main`, dist/index.js). */
+const cliEntry = createRequire(import.meta.url).resolve("recap-agent");
 
 const run = (args: string[], env: NodeJS.ProcessEnv) =>
   new Promise<{ code: number | null; stdout: string; stderr: string; timedOut: boolean }>((resolve, reject) => {
@@ -37,7 +34,7 @@ const run = (args: string[], env: NodeJS.ProcessEnv) =>
     let stderr = "";
     let timedOut = false;
 
-    // The CLI retries Groq errors forever; never let it outlive the function.
+    // The CLI retries Groq errors forever; never let it run unbounded.
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGKILL");
@@ -71,7 +68,7 @@ export const runRecapCli = async ({ githubToken, groqApiKey, day, repoTypes, lan
       mode: 0o600,
     });
 
-    // A minimal environment: nothing from the web app (database URL, secrets) leaks in.
+    // A minimal environment: nothing from the worker (database URL, secrets) leaks in.
     const env: NodeJS.ProcessEnv = {
       PATH: process.env.PATH,
       ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
@@ -86,7 +83,7 @@ export const runRecapCli = async ({ githubToken, groqApiKey, day, repoTypes, lan
 
     const { code, stdout, stderr, timedOut } = await run(
       [
-        cliEntry(),
+        cliEntry,
         "--repo-type",
         repoTypes.join(","),
         "--language",

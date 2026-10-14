@@ -1,0 +1,30 @@
+{
+  "name": "@recap/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsx build.ts",
+    "start": "node dist/main.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@recap/core": "workspace:*",
+    "@recap/db": "workspace:*",
+    "recap-agent": "workspace:*",
+    "resend": "^6.33.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@recap/config": "workspace:*",
+    "@types/node": "^26.6.5",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.4"
+  }
+}

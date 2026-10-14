@@ -1,4 +1,3 @@
-import "server-only";
 import { computeNextRunAt, localDay } from "@recap/core/schedules/next-run";
 import { prisma } from "@recap/db";
 

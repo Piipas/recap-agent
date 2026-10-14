@@ -1,15 +1,15 @@
 import { prisma } from "@recap/db";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { claimRuns } from "@/server/recaps/runs";
-import { enqueueDueSchedules } from "@/server/schedules/enqueue";
+import { enqueueDueSchedules } from "./enqueue";
+import { claimRuns } from "./runs";
 
 // Needs a migrated PostgreSQL database: TEST_DATABASE_URL=… pnpm test
-describe.skipIf(!process.env.TEST_DATABASE_URL)("database guarantees", () => {
-  const userId = "test-user-guarantees";
+describe.skipIf(!process.env.TEST_DATABASE_URL)("queue guarantees", () => {
+  const userId = "test-user-queue";
 
   beforeEach(async () => {
     await prisma.user.deleteMany({ where: { id: userId } });
-    await prisma.user.create({ data: { id: userId, name: "Test", email: "guarantees@example.com" } });
+    await prisma.user.create({ data: { id: userId, name: "Test", email: "queue@example.com" } });
   });
 
   afterAll(async () => {
