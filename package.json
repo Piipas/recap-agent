@@ -10,7 +10,10 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test --filter=!recap-agent"
+    "test": "turbo run test --filter=!recap-agent",
+    "db:generate": "turbo run db:generate",
+    "db:migrate": "turbo run db:migrate --ui=tui --",
+    "db:deploy": "turbo run db:deploy"
   },
   "devDependencies": {
     "@octokit/plugin-paginate-rest": "14.0.0",

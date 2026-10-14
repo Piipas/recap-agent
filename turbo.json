@@ -7,6 +7,14 @@
       "outputs": ["src/generated/**"],
       "passThroughEnv": ["DATABASE_URL"]
     },
+    "db:migrate": {
+      "cache": false,
+      "passThroughEnv": ["DATABASE_URL"]
+    },
+    "db:deploy": {
+      "cache": false,
+      "passThroughEnv": ["DATABASE_URL"]
+    },
     "build": {
       "dependsOn": ["^build", "^db:generate"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]

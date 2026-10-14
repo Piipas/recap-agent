@@ -16,7 +16,7 @@ Requires Node.js 20+, pnpm and PostgreSQL.
 ```bash
 pnpm install
 cp .env.example .env            # then fill it in (see below)
-pnpm --filter @recap/db db:deploy   # apply migrations
+pnpm db:deploy                  # apply migrations
 pnpm dev                        # web app on http://localhost:3000
 ```
 
@@ -25,11 +25,14 @@ pnpm dev                        # web app on http://localhost:3000
 | `pnpm build` | `turbo run build` (CLI `tsc`, Prisma generate, `next build`) |
 | `pnpm typecheck` / `pnpm lint` | Typecheck and lint every package that defines the task |
 | `pnpm test` | Web tests. The CLI is excluded: its `test` script is an intentional stub that exits 1 |
+| `pnpm db:migrate` | `prisma migrate dev`: creates a migration from schema changes and applies it. Runs in Turborepo's terminal UI so Prisma can prompt for the migration name; select the task and press Enter to type it, or pass it directly: `pnpm db:migrate --name add_x` |
+| `pnpm db:deploy` | `prisma migrate deploy`: applies pending migrations without prompting (CI and production) |
+| `pnpm db:generate` | Regenerates the Prisma client (also runs automatically before `build`, `typecheck`, `lint` and `test`) |
 
 Database tests (`*.db.test.ts`) run only when `TEST_DATABASE_URL` points at a migrated database:
 
 ```bash
-DATABASE_URL=postgresql://… pnpm --filter @recap/db db:deploy   # migrate the test database
+DATABASE_URL=postgresql://… pnpm db:deploy   # migrate the test database
 TEST_DATABASE_URL=postgresql://… pnpm test
 ```
 
@@ -68,7 +71,7 @@ A conditional lock makes double confirmations harmless. Nothing is sent without 
 ## Deploying on Vercel
 
 - **Root Directory:** `apps/web`. Vercel detects pnpm and Turborepo.
-- **Build Command:** `pnpm --filter @recap/db db:deploy && turbo run build --filter=@recap/web` (applies migrations, then builds).
+- **Build Command:** `turbo run db:deploy && turbo run build --filter=@recap/web` (applies migrations, then builds).
 - **Environment variables:** set every variable from `.env.example`.
 - **Function duration:** the generating routes declare `maxDuration = 300`. Fluid compute must allow that duration.
 
