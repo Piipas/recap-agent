@@ -8,3 +8,13 @@ packages:
 # `@octokit/plugin-paginate-rest@14.0.0` reproduces npm's placement of that package
 # (the version `octokit` itself depends on), without touching packages/cli.
 nodeLinker: hoisted
+
+allowBuilds:
+  "@prisma/engines": true
+  prisma: true
+  unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - "@next/eslint-plugin-next@16.4.1"
+  - dotenv@18.0.8
+  - eslint-config-next@16.4.1
