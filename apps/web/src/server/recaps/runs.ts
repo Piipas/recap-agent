@@ -3,8 +3,15 @@ import { prisma } from "@recap/db";
 import { toCliRepoType } from "@/lib/recap-options";
 import { getVerifiedGitHubToken } from "@/server/connections/github";
 import { getGroqKey } from "@/server/connections/groq";
+import {
+  notifyAutoSendFailed,
+  notifyAutoSent,
+  notifyRecapReady,
+  notifyRunFailed,
+} from "@/server/email/notifications";
 import { runRecapCli } from "./cli-runner";
 import { recapSubject } from "./render";
+import { sendRecap } from "./send";
 
 const MAX_ATTEMPTS = 3;
 /** A RUNNING run older than this belongs to a function that died (limit is 300 s). */
@@ -57,17 +64,30 @@ const failRun = (runId: string, error: unknown) =>
     },
   });
 
-/** Generates the recap for a claimed (RUNNING) run and stores it as a draft. */
+/**
+ * Generates the recap for a claimed (RUNNING) run. Manual runs produce a DRAFT.
+ * Scheduled runs produce a recap waiting for confirmation (when the schedule names a
+ * mailbox and recipients) and email the user a review link; only schedules with the
+ * explicit auto-send opt-in send without that confirmation.
+ */
 export const processRun = async (runId: string) => {
-  const run = await prisma.recapRun.findUniqueOrThrow({ where: { id: runId } });
+  const run = await prisma.recapRun.findUniqueOrThrow({
+    where: { id: runId },
+    include: {
+      user: { select: { email: true } },
+      schedule: { include: { recipients: { select: { email: true } } } },
+    },
+  });
+  const { schedule } = run;
+  const day = isoDay(run.day);
 
+  let recap;
   try {
     const githubToken = await getVerifiedGitHubToken(run.userId);
     if (!githubToken) throw new Error("Connect GitHub (or reconnect it) in Connections.");
     const groqApiKey = await getGroqKey(run.userId);
     if (!groqApiKey) throw new Error("Add your Groq API key in Connections.");
 
-    const day = isoDay(run.day);
     const outcome = await runRecapCli({
       githubToken,
       groqApiKey,
@@ -78,10 +98,13 @@ export const processRun = async (runId: string) => {
 
     if (outcome.kind === "no-commits") {
       await prisma.recapRun.update({ where: { id: run.id }, data: { status: "SUCCEEDED", finishedAt: new Date() } });
-      return null;
+      return;
     }
 
-    const [recap] = await prisma.$transaction([
+    const recipients = schedule?.recipients.map(({ email }) => email) ?? [];
+    const addressed = schedule?.mailboxId != null && recipients.length > 0;
+
+    [recap] = await prisma.$transaction([
       prisma.recap.create({
         data: {
           userId: run.userId,
@@ -89,14 +112,24 @@ export const processRun = async (runId: string) => {
           day: run.day,
           subject: recapSubject(outcome.markdown, day),
           content: outcome.markdown,
+          ...(addressed ? { status: "PENDING_CONFIRMATION", mailboxId: schedule.mailboxId, recipients } : {}),
         },
       }),
       prisma.recapRun.update({ where: { id: run.id }, data: { status: "SUCCEEDED", finishedAt: new Date() } }),
     ]);
-    return recap;
   } catch (error) {
     console.error(`Recap run ${run.id} failed`, error);
-    await failRun(run.id, error);
-    return null;
+    const failed = await failRun(run.id, error);
+    if (schedule) await notifyRunFailed(run.user, schedule.name, day, failed.error ?? "Generation failed.");
+    return;
+  }
+
+  if (!schedule) return;
+  if (schedule.autoSend && recap.status === "PENDING_CONFIRMATION") {
+    const result = await sendRecap(recap.id, run.userId, "AUTO");
+    if (result.ok) await notifyAutoSent(run.user, recap, result.recipients);
+    else await notifyAutoSendFailed(run.user, recap, result.error);
+  } else {
+    await notifyRecapReady(run.user, recap, schedule.name);
   }
 };

@@ -11,7 +11,8 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
     env: {
-      DATABASE_URL: "postgresql://test@localhost:5432/test",
+      // Database tests (*.db.test.ts) run only when TEST_DATABASE_URL points at a migrated database.
+      DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgresql://test@localhost:5432/test",
       BETTER_AUTH_URL: "http://localhost:3000",
       BETTER_AUTH_SECRET: "test-secret-test-secret-test-secret",
       GITHUB_CLIENT_ID: "test",
