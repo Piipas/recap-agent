@@ -24,6 +24,7 @@ export default defineConfig({
       RESEND_API_KEY: "test",
       EMAIL_FROM: "Recap Agent <test@example.com>",
       CRON_SECRET: "test-cron-secret-test-cron-secret",
+      RECAP_AGENT_CLI: "../../packages/cli/dist/index.js",
     },
   },
 });

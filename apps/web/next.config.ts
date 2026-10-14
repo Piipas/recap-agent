@@ -24,17 +24,17 @@ const findPackageDir = (name: string, fromDir: string): string => {
   }
 };
 
+const toPosixRelative = (target: string) => path.relative(webDir, target).split(path.sep).join("/");
+
+const cliDir = findPackageDir("recap-agent", webDir);
+
 /**
  * The recap-agent CLI is spawned as a child process, so Next's file tracer never
  * sees it. Include its compiled output and its full production dependency tree in
  * the serverless bundles of the routes that generate recaps.
  */
 const cliTraceGlobs = (): string[] => {
-  const cliDir = findPackageDir("recap-agent", webDir);
-  const toGlob = (dir: string, pattern: string) =>
-    path.relative(webDir, path.join(dir, pattern)).split(path.sep).join("/");
-
-  const globs = [toGlob(cliDir, "package.json"), toGlob(cliDir, "dist/**/*")];
+  const globs = [toPosixRelative(path.join(cliDir, "package.json")), toPosixRelative(path.join(cliDir, "dist/**/*"))];
   const seen = new Set<string>();
   const visit = (dir: string) => {
     const manifest = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")) as {
@@ -45,7 +45,7 @@ const cliTraceGlobs = (): string[] => {
       const depDir = findPackageDir(name, dir);
       if (seen.has(depDir)) continue;
       seen.add(depDir);
-      globs.push(toGlob(depDir, "**/*"));
+      globs.push(toPosixRelative(path.join(depDir, "**/*")));
       visit(depDir);
     }
   };
@@ -58,6 +58,8 @@ const cliFiles = cliTraceGlobs();
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@recap/db"],
+  // CLI entry relative to the app directory; resolved against cwd at runtime.
+  env: { RECAP_AGENT_CLI: toPosixRelative(path.join(cliDir, "dist/index.js")) },
   outputFileTracingRoot: repoRoot,
   outputFileTracingIncludes: {
     "/api/cron/tick": cliFiles,
