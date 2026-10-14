@@ -1,0 +1,297 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Better Auth ──────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions     Session[]
+  accounts     Account[]
+  githubSource GitHubSource?
+  groqKey      GroqKey?
+  mailboxes    Mailbox[]
+  managers     Manager[]
+  schedules    Schedule[]
+  runs         RecapRun[]
+  recaps       Recap[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+/// Sign-in identities only. Tokens are encrypted by Better Auth (encryptOAuthTokens).
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── Connections ──────────────────────────────────────────────────────────────
+
+enum ConnectionStatus {
+  ACTIVE
+  NEEDS_RECONNECT
+}
+
+/// GitHub token the CLI uses to read commits (scopes: repo, read:user, read:org).
+model GitHubSource {
+  userId         String           @id
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  githubUserId   String
+  login          String
+  accessTokenEnc String
+  scope          String
+  status         ConnectionStatus @default(ACTIVE)
+  lastError      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@map("github_source")
+}
+
+/// The user's own Groq API key, passed to the CLI as --groq-api-key.
+model GroqKey {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keyEnc    String
+  keyHint   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("groq_key")
+}
+
+enum MailboxProvider {
+  GOOGLE
+  MICROSOFT
+}
+
+/// A mailbox the user sends recaps from. Independent of the sign-in provider.
+model Mailbox {
+  id                String           @id @default(cuid())
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          MailboxProvider
+  providerAccountId String
+  email             String
+  accessTokenEnc    String
+  refreshTokenEnc   String
+  accessTokenExpiresAt DateTime
+  scope             String
+  status            ConnectionStatus @default(ACTIVE)
+  lastError         String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  schedules Schedule[]
+  recaps    Recap[]
+  sendLogs  SendLog[]
+
+  @@unique([userId, provider, providerAccountId])
+  @@index([userId])
+  @@map("mailbox")
+}
+
+// ─── Recipients & schedules ───────────────────────────────────────────────────
+
+model Manager {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  email     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  schedules Schedule[]
+
+  @@unique([userId, email])
+  @@map("manager")
+}
+
+enum RepoType {
+  USER
+  ORG
+}
+
+model Schedule {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  /// 0 = Sunday … 6 = Saturday
+  daysOfWeek Int[]
+  /// "HH:mm", local to `timezone`
+  timeOfDay  String
+  /// IANA timezone, e.g. "Europe/Paris"
+  timezone   String
+  repoTypes  RepoType[]
+  language   String
+  mailboxId  String?
+  mailbox    Mailbox?   @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+  recipients Manager[]
+  /// Explicit opt-in: send without per-recap confirmation.
+  autoSend   Boolean    @default(false)
+  enabled    Boolean    @default(true)
+  nextRunAt  DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  runs RecapRun[]
+
+  @@index([enabled, nextRunAt])
+  @@index([userId])
+  @@map("schedule")
+}
+
+// ─── Generation & sending ─────────────────────────────────────────────────────
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+/// One CLI invocation. Scheduled runs are unique per (schedule, slot) so a slot
+/// is never generated twice.
+model RecapRun {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduleId   String?
+  schedule     Schedule?  @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  scheduledFor DateTime?
+  /// Date passed to the CLI as --day
+  day          DateTime   @db.Date
+  repoTypes    RepoType[]
+  language     String
+  status       RunStatus  @default(QUEUED)
+  attempts     Int        @default(0)
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  error        String?
+  createdAt    DateTime   @default(now())
+
+  recap Recap?
+
+  @@unique([scheduleId, scheduledFor])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@map("recap_run")
+}
+
+enum RecapStatus {
+  DRAFT
+  PENDING_CONFIRMATION
+  SENT
+  FAILED
+}
+
+model Recap {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runId        String      @unique
+  run          RecapRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  day          DateTime    @db.Date
+  subject      String
+  content      String
+  status       RecapStatus @default(DRAFT)
+  mailboxId    String?
+  mailbox      Mailbox?    @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+  /// Snapshot of recipient addresses at the time the user asked to send.
+  recipients   String[]
+  /// Held while a send is in flight; prevents a double send.
+  sendLockedAt DateTime?
+  sentAt       DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  sendLogs SendLog[]
+
+  @@index([userId, createdAt])
+  @@map("recap")
+}
+
+enum SendTrigger {
+  MANUAL
+  AUTO
+}
+
+enum SendStatus {
+  SENT
+  FAILED
+}
+
+model SendLog {
+  id                String          @id @default(cuid())
+  recapId           String
+  recap             Recap           @relation(fields: [recapId], references: [id], onDelete: Cascade)
+  mailboxId         String?
+  mailbox           Mailbox?        @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+  provider          MailboxProvider
+  fromEmail         String
+  recipients        String[]
+  trigger           SendTrigger
+  status            SendStatus
+  providerMessageId String?
+  error             String?
+  createdAt         DateTime        @default(now())
+
+  @@index([recapId])
+  @@map("send_log")
+}
