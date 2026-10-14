@@ -26,7 +26,8 @@
       "dependsOn": ["^build", "^db:generate", "db:generate"]
     },
     "test": {
-      "dependsOn": ["^build", "^db:generate"]
+      "dependsOn": ["^build", "^db:generate"],
+      "env": ["TEST_DATABASE_URL"]
     },
     "dev": {
       "dependsOn": ["^build", "^db:generate"],

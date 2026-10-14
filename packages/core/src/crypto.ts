@@ -1,6 +1,5 @@
-import "server-only";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import { env } from "@/env";
+import { env } from "./env";
 
 // AES-256-GCM. Format: v1.<iv>.<auth tag>.<ciphertext>, each part base64url.
 const VERSION = "v1";

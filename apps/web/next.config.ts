@@ -57,7 +57,7 @@ const cliTraceGlobs = (): string[] => {
 const cliFiles = cliTraceGlobs();
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@recap/db"],
+  transpilePackages: ["@recap/core", "@recap/db"],
   // CLI entry relative to the app directory; resolved against cwd at runtime.
   env: { RECAP_AGENT_CLI: toPosixRelative(path.join(cliDir, "dist/index.js")) },
   outputFileTracingRoot: repoRoot,

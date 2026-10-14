@@ -1,8 +1,6 @@
-import "server-only";
 import type { MailboxProvider } from "@recap/db";
 import { z } from "zod";
-import { env } from "@/env";
-import { callbackUrl } from "@/server/connections/oauth-flow";
+import { env } from "../env";
 
 export const mailboxProviderSlugs = ["google", "microsoft"] as const;
 export type MailboxProviderSlug = (typeof mailboxProviderSlugs)[number];
@@ -48,24 +46,6 @@ export const mailboxProviders: Record<MailboxProviderSlug, ProviderConfig> = {
 
 export const slugForProvider = (provider: MailboxProvider): MailboxProviderSlug =>
   provider === "GOOGLE" ? "google" : "microsoft";
-
-export const mailboxCallbackPath = (slug: MailboxProviderSlug) => `/api/mailboxes/${slug}/callback`;
-
-export const mailboxAuthorizeUrl = (slug: MailboxProviderSlug, state: string, codeChallenge: string) => {
-  const config = mailboxProviders[slug];
-  const url = new URL(config.authorizeUrl);
-  url.search = new URLSearchParams({
-    client_id: config.clientId(),
-    redirect_uri: callbackUrl(mailboxCallbackPath(slug)),
-    response_type: "code",
-    scope: config.scopes.join(" "),
-    state,
-    code_challenge: codeChallenge,
-    code_challenge_method: "S256",
-    ...config.authorizeParams,
-  }).toString();
-  return url.toString();
-};
 
 export const tokenResponseSchema = z.object({
   access_token: z.string().min(1),

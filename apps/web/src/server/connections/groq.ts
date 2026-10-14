@@ -1,6 +1,6 @@
 import "server-only";
+import { decryptSecret, encryptSecret } from "@recap/core/crypto";
 import { prisma } from "@recap/db";
-import { decryptSecret, encryptSecret } from "@/server/crypto";
 
 /** Checks the key against Groq before storing it, so generation never fails on a typo. */
 export const saveGroqKey = async (userId: string, apiKey: string) => {

@@ -1,8 +1,8 @@
 import "server-only";
+import { decryptSecret, encryptSecret } from "@recap/core/crypto";
 import { prisma } from "@recap/db";
 import { z } from "zod";
 import { env } from "@/env";
-import { decryptSecret, encryptSecret } from "@/server/crypto";
 import { callbackUrl } from "./oauth-flow";
 
 /** The scopes the CLI itself requests in its device flow. */

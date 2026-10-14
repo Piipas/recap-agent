@@ -1,9 +1,9 @@
+import { mailboxProviderSlugs } from "@recap/core/mailboxes/providers";
 import { notFound, redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { finishOAuthFlow } from "@/server/connections/oauth-flow";
 import { connectMailbox } from "@/server/mailboxes/connect";
-import { mailboxProviderSlugs } from "@/server/mailboxes/providers";
 import { requireUser } from "@/server/session";
 
 export async function GET(request: NextRequest, context: RouteContext<"/api/mailboxes/[provider]/callback">) {

@@ -1,6 +1,5 @@
-import "server-only";
 import { type SendTrigger, prisma } from "@recap/db";
-import { sendFromMailbox } from "@/server/mailboxes/send";
+import { sendFromMailbox } from "../mailboxes/send";
 import { recapEmailHtml } from "./render";
 
 /** A lock older than this outlived its function (limit 300 s) and can be retaken. */

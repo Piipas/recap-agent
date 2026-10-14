@@ -6,6 +6,7 @@ Monorepo for Recap Agent: turn a day of GitHub commits into a short, manager-rea
 | --- | --- |
 | [`packages/cli`](packages/cli) | The `recap-agent` CLI published to npm. See its [README](packages/cli/README.md). |
 | [`apps/web`](apps/web) | Next.js web platform: sign-in, connections, recap review and sending, schedules. |
+| [`packages/core`](packages/core) | Framework-free server logic shared by the apps: token encryption, mailbox tokens and sending, recap rendering and sending, schedule times. |
 | [`packages/db`](packages/db) | Prisma schema, migrations and the shared PostgreSQL client. |
 | [`packages/config`](packages/config) | Shared TypeScript and ESLint presets. |
 

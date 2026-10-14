@@ -20,11 +20,6 @@
         "EMAIL_FROM",
         "CRON_SECRET"
       ]
-    },
-    "test": {
-      "env": [
-        "TEST_DATABASE_URL"
-      ]
     }
   }
 }

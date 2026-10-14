@@ -1,6 +1,5 @@
-import "server-only";
 import { type Mailbox, prisma } from "@recap/db";
-import { decryptSecret, encryptSecret } from "@/server/crypto";
+import { decryptSecret, encryptSecret } from "../crypto";
 import { requestToken, slugForProvider, tokenErrorSchema, tokenResponseSchema } from "./providers";
 
 /** The mailbox can no longer be used until the user reconnects it. */

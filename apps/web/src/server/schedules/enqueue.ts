@@ -1,6 +1,6 @@
 import "server-only";
+import { computeNextRunAt, localDay } from "@recap/core/schedules/next-run";
 import { prisma } from "@recap/db";
-import { computeNextRunAt, localDay } from "./next-run";
 
 /**
  * Turns every due schedule into one queued run and advances its nextRunAt, in one

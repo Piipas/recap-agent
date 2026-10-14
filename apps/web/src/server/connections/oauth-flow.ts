@@ -1,9 +1,9 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
+import { decryptSecret, encryptSecret } from "@recap/core/crypto";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { env } from "@/env";
-import { decryptSecret, encryptSecret } from "@/server/crypto";
 
 export type OAuthTarget = "github" | "google" | "microsoft";
 

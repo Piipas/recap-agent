@@ -1,17 +1,17 @@
 import "server-only";
-import { prisma } from "@recap/db";
-import { z } from "zod";
-import { callbackUrl } from "@/server/connections/oauth-flow";
-import { decryptSecret, encryptSecret } from "@/server/crypto";
+import { decryptSecret, encryptSecret } from "@recap/core/crypto";
 import {
   type MailboxProviderSlug,
-  mailboxCallbackPath,
   mailboxProviders,
   requestToken,
   slugForProvider,
   tokenErrorSchema,
   tokenResponseSchema,
-} from "./providers";
+} from "@recap/core/mailboxes/providers";
+import { prisma } from "@recap/db";
+import { z } from "zod";
+import { callbackUrl } from "@/server/connections/oauth-flow";
+import { mailboxCallbackPath } from "./authorize";
 
 // The ID token comes straight from the provider's token endpoint over TLS, so its
 // claims can be read without signature verification (OIDC Core 3.1.3.7).

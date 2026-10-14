@@ -1,10 +1,10 @@
 "use server";
 
+import { sendRecap } from "@recap/core/recaps/send";
 import { prisma } from "@recap/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/action-result";
-import { sendRecap } from "@/server/recaps/send";
 import { requireUser } from "@/server/session";
 
 const id = z.string().min(1);

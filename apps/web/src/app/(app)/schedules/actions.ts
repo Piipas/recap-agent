@@ -1,5 +1,6 @@
 "use server";
 
+import { computeNextRunAt } from "@recap/core/schedules/next-run";
 import { prisma } from "@recap/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -7,7 +8,6 @@ import { z } from "zod";
 import type { ActionResult } from "@/lib/action-result";
 import { isSupportedLanguage } from "@/lib/recap-options";
 import { isValidTimezone } from "@/lib/timezones";
-import { computeNextRunAt } from "@/server/schedules/next-run";
 import { requireUser } from "@/server/session";
 
 const id = z.string().min(1);

@@ -1,7 +1,8 @@
+import { mailboxProviderSlugs } from "@recap/core/mailboxes/providers";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { startOAuthFlow } from "@/server/connections/oauth-flow";
-import { mailboxAuthorizeUrl, mailboxProviderSlugs } from "@/server/mailboxes/providers";
+import { mailboxAuthorizeUrl } from "@/server/mailboxes/authorize";
 import { requireUser } from "@/server/session";
 
 export async function GET(_request: Request, context: RouteContext<"/api/mailboxes/[provider]/start">) {

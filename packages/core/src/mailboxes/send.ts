@@ -1,4 +1,3 @@
-import "server-only";
 import type { Mailbox } from "@recap/db";
 import { z } from "zod";
 import { type OutgoingEmail, buildMimeMessage } from "./mime";
