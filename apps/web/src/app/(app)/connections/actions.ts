@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { ActionResult } from "@/lib/action-result";
 import { disconnectGitHubSource } from "@/server/connections/github";
 import { saveGroqKey } from "@/server/connections/groq";
+import { disconnectMailbox } from "@/server/mailboxes/connect";
 import { requireUser } from "@/server/session";
 
 export async function disconnectGitHubAction(): Promise<ActionResult> {
@@ -36,4 +37,12 @@ export async function removeGroqKeyAction(): Promise<ActionResult> {
   await prisma.groqKey.deleteMany({ where: { userId: user.id } });
   revalidatePath("/connections");
   return { ok: true, message: "Groq API key removed." };
+}
+
+export async function disconnectMailboxAction(mailboxId: string): Promise<ActionResult> {
+  const user = await requireUser();
+  const id = z.string().min(1).parse(mailboxId);
+  if (!(await disconnectMailbox(user.id, id))) return { ok: false, error: "Mailbox not found." };
+  revalidatePath("/connections");
+  return { ok: true, message: "Mailbox disconnected." };
 }
