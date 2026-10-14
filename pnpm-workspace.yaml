@@ -1,0 +1,10 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# npm-style flat node_modules. The CLI's `tsc` emits declarations for its exported
+# Octokit instance, which only works when octokit's dependencies resolve as real,
+# top-level packages, as they did under npm. The root devDependency
+# `@octokit/plugin-paginate-rest@14.0.0` reproduces npm's placement of that package
+# (the version `octokit` itself depends on), without touching packages/cli.
+nodeLinker: hoisted
