@@ -5,7 +5,8 @@ Monorepo for Recap Agent: turn a day of GitHub commits into a short, manager-rea
 | Path | Description |
 | --- | --- |
 | [`packages/cli`](packages/cli) | The `recap-agent` CLI published to npm. See its [README](packages/cli/README.md). |
-| [`apps/web`](apps/web) | Next.js web platform: sign-in, connections, recap review and sending, schedules. |
+| [`apps/web`](apps/web) | Next.js web platform: sign-in, connections, recap review and sending, schedules. Never runs the CLI. |
+| [`apps/worker`](apps/worker) | Long-running Node service: runs schedules, generates recaps with the CLI, auto-sends and notifies. |
 | [`packages/core`](packages/core) | Framework-free server logic shared by the apps: token encryption, mailbox tokens and sending, recap rendering and sending, schedule times. |
 | [`packages/db`](packages/db) | Prisma schema, migrations and the shared PostgreSQL client. |
 | [`packages/config`](packages/config) | Shared TypeScript and ESLint presets. |
@@ -18,14 +19,14 @@ Requires Node.js 20+, pnpm and PostgreSQL.
 pnpm install
 cp .env.example .env            # then fill it in (see below)
 pnpm db:deploy                  # apply migrations
-pnpm dev                        # web app on http://localhost:3000
+pnpm dev                        # web app on http://localhost:3000, plus the worker
 ```
 
 | Command | What it runs |
 | --- | --- |
-| `pnpm build` | `turbo run build` (CLI `tsc`, Prisma generate, `next build`) |
+| `pnpm build` | `turbo run build` (CLI `tsc`, Prisma generate, `next build`, worker bundle) |
 | `pnpm typecheck` / `pnpm lint` | Typecheck and lint every package that defines the task |
-| `pnpm test` | Web tests. The CLI is excluded: its `test` script is an intentional stub that exits 1 |
+| `pnpm test` | Core and worker tests. The CLI is excluded: its `test` script is an intentional stub that exits 1 |
 | `pnpm db:migrate` | `prisma migrate dev`: creates a migration from schema changes and applies it. Runs in Turborepo's terminal UI so Prisma can prompt for the migration name; select the task and press Enter to type it, or pass it directly: `pnpm db:migrate --name add_x` |
 | `pnpm db:deploy` | `prisma migrate deploy`: applies pending migrations without prompting (CI and production) |
 | `pnpm db:generate` | Regenerates the Prisma client (also runs automatically before `build`, `typecheck`, `lint` and `test`) |
@@ -42,39 +43,66 @@ Notes on the workspace layout:
 - pnpm uses `nodeLinker: hoisted` so `node_modules` matches the npm tree the CLI was built with (see the comment in `pnpm-workspace.yaml`).
 - The CLI's `tsc` script now resolves the workspace TypeScript (6.0.x) instead of a globally installed one. Its emitted JavaScript is unchanged.
 
-## How the web app runs the CLI
+## Worker service
 
-The CLI has no programmatic API: `index.ts` runs `main()` on import, prints progress and the report to stdout, and keeps one module-level Octokit client. So the web app spawns it **unmodified** as a child process (`apps/web/src/server/recaps/cli-runner.ts`):
+The web app never runs the CLI. It only writes to the database: a manual **Generate** inserts a queued `recap_run`, and schedules store their `nextRunAt`. `apps/worker` is a separate, long-running process that does the rest. Every 5 seconds it:
+
+1. Enqueues due schedules in one transaction. `FOR UPDATE SKIP LOCKED`, a unique `(scheduleId, scheduledFor)` key, and advancing `nextRunAt` past "now" make this idempotent and safe with several workers.
+2. Claims queued runs up to `WORKER_CONCURRENCY` (`FOR UPDATE SKIP LOCKED` again).
+   - It generates each recap with the CLI, stores it, auto-sends it when the schedule opted in, and emails the user through Resend.
+   - A run left `RUNNING` by a crashed worker is retried after 10 minutes, at most 3 attempts in total.
+
+On `SIGTERM` the worker stops claiming and lets in-flight runs finish. You can run several replicas.
+
+### How the worker runs the CLI
+
+The CLI has no programmatic API: `index.ts` runs `main()` on import, prints progress and the report to stdout, and keeps one module-level Octokit client. So the worker spawns it **unmodified** as a child process (`apps/worker/src/cli-runner.ts`):
 
 - For each run, a temporary config directory holds the user's GitHub token in `recap-agent/credentials.json`. `APPDATA` and `XDG_CONFIG_HOME` point at it, so the CLI's device flow never starts.
-- The child gets a minimal environment, the user's own Groq key as `--groq-api-key`, and a hard 240 s timeout. The CLI retries Groq errors forever, so the timeout is what stops it.
+- The child gets a minimal environment, the user's own Groq key as `--groq-api-key`, and a hard 5-minute timeout. The CLI retries Groq errors forever, so the timeout is what stops it.
 - The report is parsed from the CLI's exact stdout lines.
-- `next.config.ts` traces the CLI's `dist` and its dependency tree into the routes that spawn it.
+- The CLI comes from the workspace (`recap-agent: workspace:*`), so the worker always runs the same build as `packages/cli`.
 
 The CLI collects commits for a **UTC** day. Scheduled runs pass the schedule's local date, so commits close to local midnight can land in the neighbouring day.
 
+The web app's language picker reads a copy of the CLI's language list from `@recap/core/languages`, so the web app has no dependency on the CLI. A worker test fails if the two lists drift apart.
+
 ## Recap flow
 
-1. A recap is generated, either manually from `/recaps` or by a schedule, and stored. A manual recap starts as a `draft`.
-2. The user previews it, picks a connected mailbox and managers, and it becomes `pending_confirmation`. Scheduled recaps arrive in this state when the schedule names a sender and recipients. The user is emailed (through Resend) a link to review them.
+1. The worker generates a recap, either for a manual request from `/recaps` or for a schedule, and stores it. A manual recap starts as a `draft`.
+2. The user previews it, picks a connected mailbox and managers, and it becomes `pending_confirmation`. Scheduled recaps arrive in this state when the schedule names a sender and recipients. The worker emails the user (through Resend) a link to review them.
 3. The user explicitly confirms, and the recap is sent from their mailbox through the Gmail API or Microsoft Graph. It ends `sent` or `failed`, and every attempt is logged.
 
 A conditional lock makes double confirmations harmless. Nothing is sent without that confirmation, except for schedules where the user explicitly turned on **Send automatically**. That setting is off by default and enabling it requires a confirmation dialog.
 
 ## Scheduling
 
-- Each schedule stores days, a time and an IANA timezone, plus a precomputed `nextRunAt`.
-- `GET /api/cron/tick` (authenticated with `Authorization: Bearer $CRON_SECRET`) does two things:
-  - Enqueues due schedules in one transaction. `FOR UPDATE SKIP LOCKED`, a unique `(scheduleId, scheduledFor)` key and advancing `nextRunAt` past "now" make it idempotent and safe under concurrent ticks.
-  - Generates a few queued runs.
-- `apps/web/vercel.json` calls the tick every minute with Vercel Cron. A per-minute schedule needs a Vercel **Pro** plan; Hobby only allows daily crons. Any other scheduler can call the endpoint with the same header.
+Each schedule stores days, a time and an IANA timezone, plus a precomputed `nextRunAt` that the web app sets on save and the worker advances. Running on time only needs the worker to be up; there is no cron endpoint or external scheduler.
 
-## Deploying on Vercel
+## Deploying
+
+Both apps need the same PostgreSQL database and the same `TOKEN_ENCRYPTION_KEY`.
+
+### Web app on Vercel
 
 - **Root Directory:** `apps/web`. Vercel detects pnpm and Turborepo.
 - **Build Command:** `turbo run db:deploy && turbo run build --filter=@recap/web` (applies migrations, then builds).
-- **Environment variables:** set every variable from `.env.example`.
-- **Function duration:** the generating routes declare `maxDuration = 300`. Fluid compute must allow that duration.
+- **Environment variables:** the *Database*, *Better Auth*, *OAuth apps* and *Token encryption* groups from `.env.example`.
+
+### Worker as a container
+
+Any host that keeps a container running works, for example Railway, Fly.io, Render or ECS. It needs no open port. Build the image from the repository root:
+
+```bash
+docker build -f apps/worker/Dockerfile -t recap-worker .
+```
+
+- The image is built from a `turbo prune` of the worker. It holds the worker bundle, `@recap/core`, `@recap/db` and the CLI, and starts with `node apps/worker/dist/main.js`.
+- **Environment variables:**
+  - `DATABASE_URL`, `TOKEN_ENCRYPTION_KEY`, and the Google and Microsoft client ID and secret (used to refresh mailbox tokens for auto-send);
+  - the *Worker* group: `APP_URL`, `RESEND_API_KEY`, `EMAIL_FROM` and optionally `WORKER_CONCURRENCY`.
+- Give it a stop grace period of up to 5 minutes, the longest a run can take, so a deploy doesn't cut runs short.
+- Migrations are applied by the web deploy (`db:deploy`). Deploy the web app first when a release changes the schema.
 
 ## OAuth apps
 
@@ -121,7 +149,7 @@ Microsoft has no per-token revocation. Disconnecting a mailbox deletes its token
 
 ### Resend
 
-Verify a sending domain in Resend, then set `RESEND_API_KEY` and `EMAIL_FROM`. Resend only sends notifications to the signed-in user (recap ready to review, auto-send results, failures). Recaps always go out from the user's own mailbox.
+Verify a sending domain in Resend, then set `RESEND_API_KEY` and `EMAIL_FROM` on the worker. Resend only sends notifications to the user (recap ready to review, auto-send results, failures). Recaps always go out from the user's own mailbox.
 
 ## License
 
