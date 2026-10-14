@@ -1,13 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
-import { loadEnvConfig } from "@next/env";
+import { parseEnv } from "node:util";
 import type { NextConfig } from "next";
 
 const webDir = import.meta.dirname;
 const repoRoot = path.resolve(webDir, "../..");
 
-// One .env at the repo root serves the web app and the Prisma CLI.
-loadEnvConfig(repoRoot);
+// One .env at the repo root serves the web app and the Prisma CLI. Real environment
+// variables win, then .env.local, then .env (same precedence as Next's own loading).
+for (const file of [".env.local", ".env"]) {
+  const envPath = path.join(repoRoot, file);
+  if (!fs.existsSync(envPath)) continue;
+  for (const [key, value] of Object.entries(parseEnv(fs.readFileSync(envPath, "utf8")))) {
+    process.env[key] ??= value;
+  }
+}
 
 const findPackageDir = (name: string, fromDir: string): string => {
   for (let dir = fromDir; ; dir = path.dirname(dir)) {

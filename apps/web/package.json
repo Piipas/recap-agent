@@ -34,7 +34,6 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@next/env": "16.4.1",
     "@recap/config": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",

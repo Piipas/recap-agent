@@ -236,9 +236,6 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
-      '@next/env':
-        specifier: 16.4.1
-        version: 16.4.1
       '@recap/config':
         specifier: workspace:*
         version: link:../../packages/config
