@@ -97,7 +97,7 @@ export default async function ConnectionsPage({ searchParams }: PageProps<"/conn
                 ) : (
                   <>
                     Requests <code className="text-xs">repo</code>, <code className="text-xs">read:user</code> and{" "}
-                    <code className="text-xs">read:org</code>, the same access the CLI asks for.
+                    <code className="text-xs">read:org</code>, to read your commits in private and organization repositories.
                   </>
                 )}
               </p>

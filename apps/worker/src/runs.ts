@@ -1,17 +1,17 @@
 import { isoDay } from "@recap/core/dates";
 import { recapSubject } from "@recap/core/recaps/render";
 import { sendRecap } from "@recap/core/recaps/send";
-import { type RepoType, prisma } from "@recap/db";
-import { runRecapCli } from "./cli-runner";
+import { prisma } from "@recap/db";
+import { generateRecap } from "./generation";
 import { notifyAutoSendFailed, notifyAutoSent, notifyRecapReady, notifyRunFailed } from "./notifications";
 import { getGroqKey, getVerifiedGitHubToken } from "./sources";
 
 const MAX_ATTEMPTS = 3;
-/** A RUNNING run older than this belongs to a worker that died (a run is capped at 5 minutes). */
+/** A RUNNING run older than this belongs to a worker that died (every request in a run has a timeout). */
 const STALE_AFTER = "10 minutes";
 
 /**
- * Claims up to `limit` runs: queued ones, plus runs stuck in RUNNING whose function
+ * Claims up to `limit` runs: queued ones, plus runs stuck in RUNNING whose worker
  * died. SKIP LOCKED lets concurrent workers split the work without overlap.
  */
 export const claimRuns = async (limit: number) => {
@@ -34,9 +34,6 @@ export const claimRuns = async (limit: number) => {
     RETURNING "id"`;
   return claimed.map(({ id }) => id);
 };
-
-/** The CLI's --repo-type values. */
-const toCliRepoType = (type: RepoType) => (type === "USER" ? "user" : "org");
 
 const failRun = (runId: string, error: unknown) =>
   prisma.recapRun.update({
@@ -72,11 +69,13 @@ export const processRun = async (runId: string) => {
     const groqApiKey = await getGroqKey(run.userId);
     if (!groqApiKey) throw new Error("Add your Groq API key in Connections.");
 
-    const outcome = await runRecapCli({
+    const outcome = await generateRecap({
       githubToken,
       groqApiKey,
       day,
-      repoTypes: run.repoTypes.map(toCliRepoType),
+      // Scheduled runs cover the local day of their schedule; manual ones the UTC day.
+      timezone: schedule?.timezone ?? "UTC",
+      repoTypes: run.repoTypes,
       language: run.language,
     });
 

@@ -10,7 +10,7 @@ import { requireUser } from "@/server/session";
 const generateSchema = z.object({
   day: z.iso
     .date("Pick a valid date.")
-    // The CLI collects a UTC day, so "today" is today in UTC.
+    // Manual recaps cover a UTC day, so "today" is today in UTC.
     .refine((day) => Date.parse(day) <= Date.now(), "That day has not started yet (UTC)."),
   repoTypes: z.array(z.enum(["USER", "ORG"])).min(1, "Choose at least one repository scope."),
   language: z.string().refine(isSupportedLanguage, "Unsupported language."),

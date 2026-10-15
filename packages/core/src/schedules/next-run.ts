@@ -31,7 +31,7 @@ export const computeNextRunAt = ({ daysOfWeek, timeOfDay, timezone }: ScheduleTi
   return null;
 };
 
-/** The calendar day (YYYY-MM-DD) of an instant in a timezone; passed to the CLI as --day. */
+/** The calendar day (YYYY-MM-DD) of an instant in a timezone: the day a scheduled recap covers. */
 export const localDay = (instant: Date, timezone: string) => {
   const local = new TZDate(instant.getTime(), timezone);
   const pad = (value: number) => String(value).padStart(2, "0");

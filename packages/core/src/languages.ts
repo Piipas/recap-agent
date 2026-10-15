@@ -1,7 +1,4 @@
-/**
- * The languages the CLI accepts for --language (its `languageCodes`). Kept here so the
- * web app does not depend on the CLI; a worker test fails if the two lists drift.
- */
+/** Languages a recap can be written in (the same list as the CLI's --language). */
 export const languageCodes = [
   "ar", // Arabic
   "zh", // Chinese

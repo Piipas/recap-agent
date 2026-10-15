@@ -5,7 +5,7 @@ import { z } from "zod";
 import { env } from "@/env";
 import { callbackUrl } from "./oauth-flow";
 
-/** The scopes the CLI itself requests in its device flow. */
+/** Read access to commits in private and organization repositories (the scopes the CLI requests too). */
 export const GITHUB_SOURCE_SCOPES = ["repo", "read:user", "read:org"] as const;
 export const GITHUB_SOURCE_CALLBACK = "/api/connections/github/callback";
 

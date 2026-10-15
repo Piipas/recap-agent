@@ -3,7 +3,7 @@ FROM node:24-slim AS base
 RUN npm install --global pnpm@12.11.2
 WORKDIR /app
 
-# Keep only the worker and the workspace packages it needs (core, db, cli, config).
+# Keep only the worker and the workspace packages it needs (core, db, config).
 FROM base AS prune
 COPY . .
 RUN pnpm dlx turbo@2.11.8 prune @recap/worker --docker

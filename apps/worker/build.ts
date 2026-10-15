@@ -1,8 +1,7 @@
 import { build } from "esbuild";
 
 // Workspace packages (@recap/*) ship TypeScript sources, so they are bundled in.
-// npm dependencies stay external and load from node_modules at runtime; the CLI is
-// spawned from its own package, never bundled.
+// npm dependencies stay external and load from node_modules at runtime.
 await build({
   entryPoints: ["src/main.ts"],
   outfile: "dist/main.js",

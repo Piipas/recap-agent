@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { recapSubject, renderRecapHtml } from "./render";
 
 describe("renderRecapHtml", () => {
-  it("renders the CLI's markdown", () => {
+  it("renders the report's markdown", () => {
     const html = renderRecapHtml("## Daily Report: 2026-10-12\n\n**Summary**\n\n- Added reset flow");
     expect(html).toContain("<h2>Daily Report: 2026-10-12</h2>");
     expect(html).toContain("<strong>Summary</strong>");

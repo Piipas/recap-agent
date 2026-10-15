@@ -4,9 +4,9 @@ Monorepo for Recap Agent: turn a day of GitHub commits into a short, manager-rea
 
 | Path | Description |
 | --- | --- |
-| [`packages/cli`](packages/cli) | The `recap-agent` CLI published to npm. See its [README](packages/cli/README.md). |
-| [`apps/web`](apps/web) | Next.js web platform: sign-in, connections, recap review and sending, schedules. Never runs the CLI. |
-| [`apps/worker`](apps/worker) | Long-running Node service: runs schedules, generates recaps with the CLI, auto-sends and notifies. |
+| [`packages/cli`](packages/cli) | The `recap-agent` CLI published to npm, for use in a terminal. See its [README](packages/cli/README.md). The apps don't use it. |
+| [`apps/web`](apps/web) | Next.js web platform: sign-in, connections, recap review and sending, schedules. |
+| [`apps/worker`](apps/worker) | Long-running Node service: runs schedules, generates recaps (GitHub + Groq), auto-sends and notifies. |
 | [`packages/core`](packages/core) | Framework-free server logic shared by the apps: token encryption, mailbox tokens and sending, recap rendering and sending, schedule times. |
 | [`packages/db`](packages/db) | Prisma schema, migrations and the shared PostgreSQL client. |
 | [`packages/config`](packages/config) | Shared TypeScript and ESLint presets. |
@@ -45,27 +45,30 @@ Notes on the workspace layout:
 
 ## Worker service
 
-The web app never runs the CLI. It only writes to the database: a manual **Generate** inserts a queued `recap_run`, and schedules store their `nextRunAt`. `apps/worker` is a separate, long-running process that does the rest. Every 5 seconds it:
+The web app never generates recaps. It only writes to the database: a manual **Generate** inserts a queued `recap_run`, and schedules store their `nextRunAt`. `apps/worker` is a separate, long-running process that does the rest. Every 5 seconds it:
 
 1. Enqueues due schedules in one transaction. `FOR UPDATE SKIP LOCKED`, a unique `(scheduleId, scheduledFor)` key, and advancing `nextRunAt` past "now" make this idempotent and safe with several workers.
 2. Claims queued runs up to `WORKER_CONCURRENCY` (`FOR UPDATE SKIP LOCKED` again).
-   - It generates each recap with the CLI, stores it, auto-sends it when the schedule opted in, and emails the user through Resend.
+   - It generates each recap, stores it, auto-sends it when the schedule opted in, and emails the user through Resend.
    - A run left `RUNNING` by a crashed worker is retried after 10 minutes, at most 3 attempts in total.
 
 On `SIGTERM` the worker stops claiming and lets in-flight runs finish. You can run several replicas.
 
-### How the worker runs the CLI
+### How the worker generates a recap
 
-The CLI has no programmatic API: `index.ts` runs `main()` on import, prints progress and the report to stdout, and keeps one module-level Octokit client. So the worker spawns it **unmodified** as a child process (`apps/worker/src/cli-runner.ts`):
+The worker has its own generation code (`apps/worker/src/generation`); it does not run or import the CLI.
 
-- For each run, a temporary config directory holds the user's GitHub token in `recap-agent/credentials.json`. `APPDATA` and `XDG_CONFIG_HOME` point at it, so the CLI's device flow never starts.
-- The child gets a minimal environment, the user's own Groq key as `--groq-api-key`, and a hard 5-minute timeout. The CLI retries Groq errors forever, so the timeout is what stops it.
-- The report is parsed from the CLI's exact stdout lines.
-- The CLI comes from the workspace (`recap-agent: workspace:*`), so the worker always runs the same build as `packages/cli`.
-
-The CLI collects commits for a **UTC** day. Scheduled runs pass the schedule's local date, so commits close to local midnight can land in the neighbouring day.
-
-The web app's language picker reads a copy of the CLI's language list from `@recap/core/languages`, so the web app has no dependency on the CLI. A worker test fails if the two lists drift apart.
+1. **Day window.** A scheduled run covers the calendar day in its schedule's timezone. A manual run covers the UTC day, as the generate form says.
+2. **Commits** (`github.ts`), with the user's GitHub connection:
+   - Lists the repositories the user can access, newest push first, and stops at the first one last pushed before the day.
+   - Keeps personal or organization repositories, as the run asks.
+   - Reads the user's commits on each default branch inside the window, following every page.
+3. **Prompt** (`prompt.ts`): each commit becomes one line (repository and subject), plus the start of its body when it fits.
+   - The commit list is capped at about 4,000 tokens: bodies are dropped first, then the latest commits are counted instead of listed.
+   - A request therefore stays within Groq's free-tier limit of 8,000 tokens per minute on any day.
+4. **Report** (`groq.ts`): written by `openai/gpt-oss-120b` with the user's own Groq key, using instructions adapted from the CLI's prompt.
+   - Rate limits and server errors are retried up to 3 times. Anything else fails at once with a readable error on the run.
+   - Every request has a timeout, so a run never hangs.
 
 ## Recap flow
 
@@ -97,11 +100,11 @@ Any host that keeps a container running works, for example Railway, Fly.io, Rend
 docker build -f apps/worker/Dockerfile -t recap-worker .
 ```
 
-- The image is built from a `turbo prune` of the worker. It holds the worker bundle, `@recap/core`, `@recap/db` and the CLI, and starts with `node apps/worker/dist/main.js`.
+- The image is built from a `turbo prune` of the worker. It holds the worker bundle, `@recap/core` and `@recap/db`, and starts with `node apps/worker/dist/main.js`.
 - **Environment variables:**
   - `DATABASE_URL`, `TOKEN_ENCRYPTION_KEY`, and the Google and Microsoft client ID and secret (used to refresh mailbox tokens for auto-send);
   - the *Worker* group: `APP_URL`, `RESEND_API_KEY`, `EMAIL_FROM` and optionally `WORKER_CONCURRENCY`.
-- Give it a stop grace period of up to 5 minutes, the longest a run can take, so a deploy doesn't cut runs short.
+- Give it a stop grace period of a few minutes so a deploy lets in-flight runs finish. A run that is cut short anyway is retried by a worker after 10 minutes.
 - Migrations are applied by the web deploy (`db:deploy`). Deploy the web app first when a release changes the schema.
 
 ## OAuth apps
@@ -117,7 +120,7 @@ Every redirect URI below uses your `BETTER_AUTH_URL` as its base, e.g. `https://
    - The app uses two: `/api/auth/callback/github` for sign-in and `/api/connections/github/callback` for the commit source.
 4. Copy the Client ID and generate a client secret into `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`.
 
-Sign-in only requests `read:user user:email`. Connecting GitHub as the commit source separately requests `repo read:user read:org`, the same scopes the CLI asks for. For organization repositories, the org may need to approve the app (**Organization settings → Third-party access**).
+Sign-in only requests `read:user user:email`. Connecting GitHub as the commit source separately requests `repo read:user read:org`, the same scopes the CLI asks for: the worker reads commits from private and organization repositories with it. For organization repositories, the org may need to approve the app (**Organization settings → Third-party access**).
 
 ### Google (sign-in + Gmail sending)
 

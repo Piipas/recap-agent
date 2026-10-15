@@ -13,7 +13,7 @@ const processor = unified().use(remarkParse).use(remarkRehype).use(rehypeSanitiz
  */
 export const renderRecapHtml = (markdown: string) => String(processor.processSync(markdown));
 
-/** "## Daily Report: 2026-10-12" (translated by the CLI) becomes the subject. */
+/** "## Daily Report: 2026-10-12" (translated with the report) becomes the subject. */
 export const recapSubject = (markdown: string, day: string) => {
   const heading = /^#{1,6}\s+(.+)$/m.exec(markdown)?.[1]?.replace(/[*_`]/g, "").trim();
   return heading ? heading.slice(0, 200) : `Daily recap: ${day}`;

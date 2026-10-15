@@ -111,7 +111,7 @@ export function ScheduleForm({ scheduleId, values, mailboxes, managers }: Schedu
         </div>
       </div>
       <p className="text-muted-foreground -mt-3 text-xs">
-        The recap covers the schedule&apos;s calendar day at that time. The CLI collects commits per UTC day.
+        The recap covers that calendar day, in the schedule&apos;s timezone.
       </p>
 
       <Separator />
