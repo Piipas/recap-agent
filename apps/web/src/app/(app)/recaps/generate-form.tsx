@@ -47,6 +47,7 @@ export function GenerateForm({ today }: { today: string }) {
               ))}
             </SelectContent>
           </Select>
+          <p className="text-muted-foreground text-xs">The language of the recap content.</p>
         </div>
       </div>
       <fieldset className="grid gap-3">
