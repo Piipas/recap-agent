@@ -1,9 +1,10 @@
 import { isoDay } from "@recap/core/dates";
 import { prisma } from "@recap/db";
-import { AlertCircle, ArrowRight } from "lucide-react";
+import { AlertCircle, ArrowRight, Trash2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { ConfirmAction } from "@/components/confirm-action";
 import { LocalTime } from "@/components/local-time";
 import { PageHeader } from "@/components/page-header";
 import { RunStatusBadge } from "@/components/recap-status";
@@ -13,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { languageLabel } from "@/lib/recap-options";
 import { requireUser } from "@/server/session";
+import { deleteRunAction } from "./actions";
 import { GenerateForm } from "./generate-form";
 
 export const metadata: Metadata = { title: "Recaps" };
@@ -89,7 +91,7 @@ export default async function RecapsPage() {
                     <TableHead className="hidden md:table-cell">Source</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden sm:table-cell">Created</TableHead>
-                    <TableHead className="w-16" />
+                    <TableHead className="w-24" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -116,12 +118,31 @@ export default async function RecapsPage() {
                       <TableCell className="text-muted-foreground hidden sm:table-cell">
                         <LocalTime date={run.createdAt.toISOString()} />
                       </TableCell>
-                      <TableCell className="text-right">
-                        {run.recap ? (
-                          <Button asChild variant="ghost" size="sm">
-                            <Link href={`/recaps/${run.recap.id}`}>Open</Link>
-                          </Button>
-                        ) : null}
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          {run.recap ? (
+                            <Button asChild variant="ghost" size="sm">
+                              <Link href={`/recaps/${run.recap.id}`}>Open</Link>
+                            </Button>
+                          ) : null}
+                          {run.status === "RUNNING" ? null : (
+                            <ConfirmAction
+                              action={deleteRunAction.bind(null, run.id)}
+                              title="Delete from history?"
+                              description={
+                                run.status === "QUEUED"
+                                  ? "The recap will not be generated."
+                                  : "The recap and its send history are deleted. Emails already sent are not affected."
+                              }
+                              confirmLabel="Delete"
+                              destructive
+                            >
+                              <Button variant="ghost" size="icon-sm" aria-label={`Delete the recap for ${isoDay(run.day)}`}>
+                                <Trash2 />
+                              </Button>
+                            </ConfirmAction>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

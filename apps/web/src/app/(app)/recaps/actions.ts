@@ -1,5 +1,6 @@
 "use server";
 
+import { deleteHistoryRun } from "@recap/core/recaps/history";
 import { prisma } from "@recap/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -44,4 +45,15 @@ export async function generateRecapAction(_previous: ActionResult | null, formDa
 
   revalidatePath("/recaps");
   return { ok: true, message: "Your recap is queued. It will appear below in a minute or two." };
+}
+
+export async function deleteRunAction(runId: string): Promise<ActionResult> {
+  const user = await requireUser();
+  const parsed = z.string().min(1).safeParse(runId);
+  if (!parsed.success || !(await deleteHistoryRun(parsed.data, user.id))) {
+    return { ok: false, error: "This recap can't be deleted while it is being generated or sent." };
+  }
+
+  revalidatePath("/recaps");
+  return { ok: true, message: "Deleted from history." };
 }
