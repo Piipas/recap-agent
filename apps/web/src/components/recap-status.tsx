@@ -1,5 +1,5 @@
 import type { RecapStatus, RunStatus } from "@recap/db";
-import { Loader2 } from "lucide-react";
+import { Clock, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const recapLabels: Record<RecapStatus, { label: string; variant: "secondary" | "default" | "destructive" | "outline" }> =
@@ -21,6 +21,11 @@ export function RunStatusBadge({ runStatus, recapStatus }: { runStatus: RunStatu
 
   switch (runStatus) {
     case "QUEUED":
+      return (
+        <Badge variant="outline" className="gap-1">
+          <Clock /> Queued
+        </Badge>
+      );
     case "RUNNING":
       return (
         <Badge variant="outline" className="gap-1">

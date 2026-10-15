@@ -17,6 +17,9 @@ import { GenerateForm } from "./generate-form";
 
 export const metadata: Metadata = { title: "Recaps" };
 
+/** The worker polls every few seconds; a run queued longer than this was never picked up. */
+const UNCLAIMED_AFTER_MS = 2 * 60_000;
+
 export default async function RecapsPage() {
   const user = await requireUser();
   const [github, groqKey, runs] = await Promise.all([
@@ -38,6 +41,7 @@ export default async function RecapsPage() {
     groqKey ? null : "your Groq API key",
   ].filter((item) => item !== null);
   const inProgress = runs.some((run) => run.status === "QUEUED" || run.status === "RUNNING");
+  const unclaimedBefore = new Date(new Date().getTime() - UNCLAIMED_AFTER_MS);
 
   return (
     <>
@@ -102,6 +106,11 @@ export default async function RecapsPage() {
                         <RunStatusBadge runStatus={run.status} {...(run.recap ? { recapStatus: run.recap.status } : {})} />
                         {run.status === "FAILED" && run.error ? (
                           <p className="text-muted-foreground mt-1 max-w-xs text-xs break-words">{run.error}</p>
+                        ) : null}
+                        {run.status === "QUEUED" && run.createdAt < unclaimedBefore ? (
+                          <p className="text-muted-foreground mt-1 max-w-xs text-xs">
+                            Not picked up yet. Check that the worker service is running.
+                          </p>
                         ) : null}
                       </TableCell>
                       <TableCell className="text-muted-foreground hidden sm:table-cell">
