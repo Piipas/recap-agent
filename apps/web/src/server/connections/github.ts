@@ -72,18 +72,41 @@ export const connectGitHubSource = async (userId: string, code: string, codeVeri
   await prisma.gitHubSource.upsert({ where: { userId }, create: { userId, ...data }, update: data });
 };
 
+/** Calls an OAuth-app endpoint (authenticated with the app's client ID and secret) for one user token. */
+const oauthAppRequest = (path: "token" | "grant", accessToken: string) => {
+  const basic = Buffer.from(`${env.GITHUB_CLIENT_ID}:${env.GITHUB_CLIENT_SECRET}`).toString("base64");
+  return fetch(`https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/${path}`, {
+    method: "DELETE",
+    headers: { ...API_HEADERS, Authorization: `Basic ${basic}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ access_token: accessToken }),
+    signal: AbortSignal.timeout(15_000),
+  });
+};
+
+/** Revokes one token. Best effort: a token that is already invalid needs nothing more. */
+export const revokeGitHubToken = async (accessToken: string) => {
+  await oauthAppRequest("token", accessToken).catch(() => undefined);
+};
+
+/**
+ * Deletes the user's authorization of the app: every token it holds for that GitHub
+ * user is revoked (sign-in and commit source alike) and the app disappears from their
+ * authorized apps. Any of the user's valid tokens works; returns whether one did.
+ */
+export const revokeGitHubGrant = async (accessTokens: string[]) => {
+  for (const accessToken of accessTokens) {
+    const response = await oauthAppRequest("grant", accessToken).catch(() => null);
+    if (response?.status === 204) return true;
+  }
+  return false;
+};
+
 export const disconnectGitHubSource = async (userId: string) => {
   const source = await prisma.gitHubSource.findUnique({ where: { userId } });
   if (!source) return;
 
   // Revoke this token only (not the whole app grant, which also backs sign-in).
-  const basic = Buffer.from(`${env.GITHUB_CLIENT_ID}:${env.GITHUB_CLIENT_SECRET}`).toString("base64");
-  await fetch(`https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/token`, {
-    method: "DELETE",
-    headers: { ...API_HEADERS, Authorization: `Basic ${basic}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ access_token: decryptSecret(source.accessTokenEnc) }),
-  }).catch(() => undefined);
-
+  await revokeGitHubToken(decryptSecret(source.accessTokenEnc));
   await prisma.gitHubSource.delete({ where: { userId } });
 };
 
