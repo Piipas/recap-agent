@@ -116,8 +116,8 @@ export default function TermsPage() {
 
       <LegalSection title="11. Ending your use">
         <p>
-          You can stop using the Service at any time and ask us to delete your account by emailing{" "}
-          <a href={`mailto:${CONTACT}`}>{CONTACT}</a>. We may suspend or close an account that breaks these terms, with
+          You can stop using the Service at any time and delete your account from the account menu, or ask us to by
+          emailing <a href={`mailto:${CONTACT}`}>{CONTACT}</a>. We may suspend or close an account that breaks these terms, with
           notice unless the breach is serious or the law prevents it.
         </p>
       </LegalSection>

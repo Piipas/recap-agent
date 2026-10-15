@@ -156,8 +156,9 @@ export default function PrivacyPage() {
           </li>
           <li>Deleting a recap from your history also deletes its send log. Managers and schedules can be deleted any time.</li>
           <li>
-            To delete your account and all its data, email <a href={`mailto:${CONTACT}`}>{CONTACT}</a> from the address of
-            your account. We do so within 30 days.
+            You can delete your account at any time with <strong>Delete account</strong> in the account menu (your
+            avatar). This immediately deletes all your data and revokes access to your GitHub repositories and Gmail mailboxes.
+            You can also ask us by email at <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.
           </li>
         </ul>
       </LegalSection>

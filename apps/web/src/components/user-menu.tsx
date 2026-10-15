@@ -1,7 +1,8 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,12 +13,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DeleteAccountDialog } from "@/components/delete-account-dialog";
 import { authClient } from "@/lib/auth-client";
 
 type UserMenuProps = { name: string; email: string; image: string | null | undefined };
 
 export function UserMenu({ name, email, image }: UserMenuProps) {
   const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
   const initials = name
     .split(/\s+/)
     .map((part) => part[0])
@@ -32,25 +35,32 @@ export function UserMenu({ name, email, image }: UserMenuProps) {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
-          <Avatar className="size-8">
-            {image ? <AvatarImage src={image} alt="" /> : null}
-            <AvatarFallback>{initials || "?"}</AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="font-normal">
-          <p className="truncate text-sm font-medium">{name}</p>
-          <p className="text-muted-foreground truncate text-xs">{email}</p>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={signOut}>
-          <LogOut /> Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
+            <Avatar className="size-8">
+              {image ? <AvatarImage src={image} alt="" /> : null}
+              <AvatarFallback>{initials || "?"}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel className="font-normal">
+            <p className="truncate text-sm font-medium">{name}</p>
+            <p className="text-muted-foreground truncate text-xs">{email}</p>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={signOut}>
+            <LogOut /> Sign out
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
+            <Trash2 /> Delete account
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DeleteAccountDialog email={email} open={deleting} onOpenChange={setDeleting} />
+    </>
   );
 }
