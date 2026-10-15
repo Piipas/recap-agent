@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +29,8 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
       </Card>
       <p className="text-muted-foreground max-w-sm text-center text-xs">
         Signing in only shares your name and email. Access to your repositories and mailboxes is requested separately,
-        when you connect them.
+        when you connect them. By signing in, you agree to the <Link href="/terms" className="underline underline-offset-4">Terms of Service</Link>{" "}
+        and the <Link href="/privacy" className="underline underline-offset-4">Privacy Policy</Link>.
       </p>
     </main>
   );
