@@ -1,5 +1,6 @@
 import "server-only";
 import { decryptSecret, encryptSecret } from "@recap/core/crypto";
+import { githubPages } from "@recap/core/github";
 import { prisma } from "@recap/db";
 import { z } from "zod";
 import { env } from "@/env";
@@ -10,6 +11,8 @@ export const GITHUB_SOURCE_SCOPES = ["repo", "read:user", "read:org"] as const;
 export const GITHUB_SOURCE_CALLBACK = "/api/connections/github/callback";
 
 const API_HEADERS = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+/** An organization with more repositories than this many pages of 100 is cut off in the picker. */
+const MAX_REPO_PAGES = 10;
 
 export const githubAuthorizeUrl = (state: string, codeChallenge: string) => {
   const url = new URL("https://github.com/login/oauth/authorize");
@@ -82,4 +85,39 @@ export const disconnectGitHubSource = async (userId: string) => {
   }).catch(() => undefined);
 
   await prisma.gitHubSource.delete({ where: { userId } });
+};
+
+const activeToken = async (userId: string) => {
+  const source = await prisma.gitHubSource.findUnique({ where: { userId } });
+  return source?.status === "ACTIVE" ? decryptSecret(source.accessTokenEnc) : null;
+};
+
+/** Logins of the organizations the user's GitHub connection can see, sorted. */
+export const listGitHubOrgs = async (userId: string) => {
+  const token = await activeToken(userId);
+  if (!token) throw new Error("Connect GitHub in Connections first.");
+
+  const orgs: string[] = [];
+  for await (const page of githubPages(token, "/user/orgs?per_page=100", z.object({ login: z.string() }), "your organizations")) {
+    orgs.push(...page.map(({ login }) => login));
+  }
+  return orgs.sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+};
+
+/** "org/repo" names of an organization's repositories the user can access, sorted. */
+export const listGitHubOrgRepos = async (userId: string, org: string) => {
+  const token = await activeToken(userId);
+  if (!token) throw new Error("Connect GitHub in Connections first.");
+
+  const repos: string[] = [];
+  for await (const page of githubPages(
+    token,
+    `/orgs/${encodeURIComponent(org)}/repos?type=all&sort=full_name&per_page=100`,
+    z.object({ full_name: z.string() }),
+    `the repositories of ${org}`,
+    MAX_REPO_PAGES,
+  )) {
+    repos.push(...page.map(({ full_name }) => full_name));
+  }
+  return repos;
 };

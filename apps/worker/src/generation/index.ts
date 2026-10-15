@@ -1,5 +1,5 @@
 import { dayBounds } from "@recap/core/dates";
-import type { RepoType } from "@recap/db";
+import type { RepoScope } from "@recap/core/repo-scope";
 import { collectCommits } from "./github";
 import { generateReport } from "./groq";
 import { buildPrompt } from "./prompt";
@@ -11,7 +11,7 @@ export type GenerationInput = {
   day: string;
   /** IANA timezone the day is read in */
   timezone: string;
-  repoTypes: RepoType[];
+  scope: RepoScope;
   language: string;
 };
 
@@ -20,7 +20,7 @@ export type GenerationOutcome = { kind: "report"; markdown: string } | { kind: "
 /** Collects the day's commits from GitHub and has Groq write the recap. */
 export const generateRecap = async (input: GenerationInput): Promise<GenerationOutcome> => {
   const { start, end } = dayBounds(input.day, input.timezone);
-  const commits = await collectCommits(input.githubToken, { since: start, until: end, repoTypes: input.repoTypes });
+  const commits = await collectCommits(input.githubToken, { since: start, until: end, scope: input.scope });
   if (commits.length === 0) return { kind: "no-commits" };
 
   const markdown = await generateReport(input.groqApiKey, buildPrompt(commits, input.language, input.day));

@@ -75,7 +75,7 @@ export const processRun = async (runId: string) => {
       day,
       // Scheduled runs cover the local day of their schedule; manual ones the UTC day.
       timezone: schedule?.timezone ?? "UTC",
-      repoTypes: run.repoTypes,
+      scope: { repoTypes: run.repoTypes, orgs: run.orgs, orgRepos: run.orgRepos },
       language: run.language,
     });
 

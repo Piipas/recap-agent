@@ -1,6 +1,7 @@
 "use server";
 
 import { deleteHistoryRun } from "@recap/core/recaps/history";
+import { repoScopeSchema } from "@recap/core/repo-scope";
 import { prisma } from "@recap/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -13,7 +14,7 @@ const generateSchema = z.object({
     .date("Pick a valid date.")
     // Manual recaps cover a UTC day, so "today" is today in UTC.
     .refine((day) => Date.parse(day) <= Date.now(), "That day has not started yet (UTC)."),
-  repoTypes: z.array(z.enum(["USER", "ORG"])).min(1, "Choose at least one repository scope."),
+  scope: repoScopeSchema,
   language: z.string().refine(isSupportedLanguage, "Unsupported language."),
 });
 
@@ -21,7 +22,11 @@ export async function generateRecapAction(_previous: ActionResult | null, formDa
   const user = await requireUser();
   const parsed = generateSchema.safeParse({
     day: formData.get("day"),
-    repoTypes: formData.getAll("repoTypes"),
+    scope: {
+      repoTypes: formData.getAll("repoTypes"),
+      orgs: formData.getAll("orgs"),
+      orgRepos: formData.getAll("orgRepos"),
+    },
     language: formData.get("language"),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request." };
@@ -38,7 +43,7 @@ export async function generateRecapAction(_previous: ActionResult | null, formDa
     data: {
       userId: user.id,
       day: new Date(`${parsed.data.day}T00:00:00Z`),
-      repoTypes: parsed.data.repoTypes,
+      ...parsed.data.scope,
       language: parsed.data.language,
     },
   });

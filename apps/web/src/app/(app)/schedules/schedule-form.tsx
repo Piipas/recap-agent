@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { languageOptions, repoTypeOptions } from "@/lib/recap-options";
 import { timezoneOptions, weekdayOptions } from "@/lib/timezones";
+import { OrgRepoPicker } from "../org-repo-picker";
 import { saveScheduleAction } from "./actions";
 
 export type ScheduleFormValues = {
@@ -30,6 +31,8 @@ export type ScheduleFormValues = {
   timeOfDay: string;
   timezone: string | null;
   repoTypes: ("USER" | "ORG")[];
+  orgs: string[];
+  orgRepos: string[];
   language: string;
   mailboxId: string | null;
   managerIds: string[];
@@ -58,6 +61,7 @@ export function ScheduleForm({ scheduleId, values, mailboxes, managers }: Schedu
   const [timezone, setTimezone] = useState(values.timezone);
   const [mailboxId, setMailboxId] = useState(values.mailboxId ?? NO_MAILBOX);
   const [autoSend, setAutoSend] = useState(values.autoSend);
+  const [withOrgs, setWithOrgs] = useState(values.repoTypes.includes("ORG"));
   const [confirmingAutoSend, setConfirmingAutoSend] = useState(false);
 
   return (
@@ -126,6 +130,7 @@ export function ScheduleForm({ scheduleId, values, mailboxes, managers }: Schedu
                 name="repoTypes"
                 value={value}
                 defaultChecked={values.repoTypes.includes(value)}
+                onCheckedChange={(checked) => value === "ORG" && setWithOrgs(checked === true)}
               />
               <Label htmlFor={`repo-${value}`} className="font-normal">
                 {label}
@@ -148,6 +153,11 @@ export function ScheduleForm({ scheduleId, values, mailboxes, managers }: Schedu
             </SelectContent>
           </Select>
         </div>
+        {withOrgs ? (
+          <div className="sm:col-span-2">
+            <OrgRepoPicker defaultOrgs={values.orgs} defaultOrgRepos={values.orgRepos} />
+          </div>
+        ) : null}
       </div>
 
       <Separator />

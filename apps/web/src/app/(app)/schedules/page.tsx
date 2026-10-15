@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { languageLabel } from "@/lib/recap-options";
+import { describeRepoScope, languageLabel } from "@/lib/recap-options";
 import { weekdayOptions } from "@/lib/timezones";
 import { requireUser } from "@/server/session";
 import { deleteScheduleAction } from "./actions";
@@ -89,6 +89,10 @@ export default async function SchedulesPage() {
                         "not scheduled"
                       )}
                     </dd>
+                  </div>
+                  <div>
+                    <dt className="sr-only">Repositories</dt>
+                    <dd>Repositories: {describeRepoScope(schedule)}</dd>
                   </div>
                   <div>
                     <dt className="sr-only">Delivery</dt>

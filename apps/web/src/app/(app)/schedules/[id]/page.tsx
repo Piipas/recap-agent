@@ -33,6 +33,8 @@ export default async function EditSchedulePage({ params }: PageProps<"/schedules
               timeOfDay: schedule.timeOfDay,
               timezone: schedule.timezone,
               repoTypes: schedule.repoTypes,
+              orgs: schedule.orgs,
+              orgRepos: schedule.orgRepos,
               language: schedule.language,
               mailboxId: schedule.mailboxId,
               managerIds: schedule.recipients.map((recipient) => recipient.id),

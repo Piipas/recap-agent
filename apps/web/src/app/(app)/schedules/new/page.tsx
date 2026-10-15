@@ -26,6 +26,8 @@ export default async function NewSchedulePage() {
               timeOfDay: "18:00",
               timezone: null,
               repoTypes: ["USER"],
+              orgs: [],
+              orgRepos: [],
               language: "en",
               mailboxId: mailboxes.find((mailbox) => mailbox.status === "ACTIVE")?.id ?? null,
               managerIds: [],

@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Sparkles } from "lucide-react";
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,11 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { languageOptions, repoTypeOptions } from "@/lib/recap-options";
+import { OrgRepoPicker } from "../org-repo-picker";
 import { generateRecapAction } from "./actions";
+
+const NONE: string[] = [];
 
 export function GenerateForm({ today }: { today: string }) {
   const [state, formAction, pending] = useActionState(generateRecapAction, null);
   const handled = useRef(state);
+  const [withOrgs, setWithOrgs] = useState(false);
 
   useEffect(() => {
     if (!state?.ok || handled.current === state) return;
@@ -49,12 +53,19 @@ export function GenerateForm({ today }: { today: string }) {
         <legend className="mb-2 text-sm font-medium">Repositories</legend>
         {repoTypeOptions.map(({ value, label }) => (
           <div key={value} className="flex items-center gap-2">
-            <Checkbox id={`repo-${value}`} name="repoTypes" value={value} defaultChecked={value === "USER"} />
+            <Checkbox
+              id={`repo-${value}`}
+              name="repoTypes"
+              value={value}
+              defaultChecked={value === "USER"}
+              onCheckedChange={(checked) => value === "ORG" && setWithOrgs(checked === true)}
+            />
             <Label htmlFor={`repo-${value}`} className="font-normal">
               {label}
             </Label>
           </div>
         ))}
+        {withOrgs ? <OrgRepoPicker defaultOrgs={NONE} defaultOrgRepos={NONE} /> : null}
       </fieldset>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button type="submit" disabled={pending}>

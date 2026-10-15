@@ -31,6 +31,8 @@ export const enqueueDueSchedules = async (now: Date, limit = 100) =>
           scheduledFor: schedule.nextRunAt,
           day: new Date(`${localDay(schedule.nextRunAt, schedule.timezone)}T00:00:00Z`),
           repoTypes: schedule.repoTypes,
+          orgs: schedule.orgs,
+          orgRepos: schedule.orgRepos,
           language: schedule.language,
         },
         skipDuplicates: true,

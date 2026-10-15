@@ -60,8 +60,8 @@ The worker has its own generation code (`apps/worker/src/generation`); it does n
 
 1. **Day window.** A scheduled run covers the calendar day in its schedule's timezone. A manual run covers the UTC day, as the generate form says.
 2. **Commits** (`github.ts`), with the user's GitHub connection:
-   - Lists the repositories the user can access, newest push first, and stops at the first one last pushed before the day.
-   - Keeps personal or organization repositories, as the run asks.
+   - **Personal repositories:** those the user owns or collaborates on, newest push first, stopping at the first one last pushed before the day.
+   - **Organizations:** only the ones chosen on the run or schedule. For each, either all its repositories pushed since the day started, or exactly the repositories picked.
    - Reads the user's commits on each default branch inside the window, following every page.
 3. **Prompt** (`prompt.ts`): each commit becomes one line (repository and subject), plus the start of its body when it fits.
    - The commit list is capped at about 4,000 tokens: bodies are dropped first, then the latest commits are counted instead of listed.

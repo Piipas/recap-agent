@@ -86,7 +86,7 @@ enum ConnectionStatus {
   NEEDS_RECONNECT
 }
 
-/// GitHub token the CLI uses to read commits (scopes: repo, read:user, read:org).
+/// GitHub token the worker reads commits with (scopes: repo, read:user, read:org).
 model GitHubSource {
   userId         String           @id
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -102,7 +102,7 @@ model GitHubSource {
   @@map("github_source")
 }
 
-/// The user's own Groq API key, passed to the CLI as --groq-api-key.
+/// The user's own Groq API key, used by the worker to write recaps.
 model GroqKey {
   userId    String   @id
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -179,6 +179,11 @@ model Schedule {
   /// IANA timezone, e.g. "Europe/Paris"
   timezone   String
   repoTypes  RepoType[]
+  /// GitHub organizations included with ORG (logins).
+  orgs       String[]   @default([])
+  /// "org/repo" names. An organization with repositories listed here is limited to
+  /// them; an organization with none listed includes all its repositories.
+  orgRepos   String[]   @default([])
   language   String
   mailboxId  String?
   mailbox    Mailbox?   @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
@@ -206,7 +211,7 @@ enum RunStatus {
   FAILED
 }
 
-/// One CLI invocation. Scheduled runs are unique per (schedule, slot) so a slot
+/// One recap generation. Scheduled runs are unique per (schedule, slot) so a slot
 /// is never generated twice.
 model RecapRun {
   id           String     @id @default(cuid())
@@ -215,9 +220,12 @@ model RecapRun {
   scheduleId   String?
   schedule     Schedule?  @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   scheduledFor DateTime?
-  /// Date passed to the CLI as --day
+  /// The calendar day the recap covers
   day          DateTime   @db.Date
   repoTypes    RepoType[]
+  /// Snapshot of the schedule's (or the form's) organization selection; see Schedule.
+  orgs         String[]   @default([])
+  orgRepos     String[]   @default([])
   language     String
   status       RunStatus  @default(QUEUED)
   attempts     Int        @default(0)

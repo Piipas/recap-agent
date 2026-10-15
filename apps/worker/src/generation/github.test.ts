@@ -42,10 +42,10 @@ afterEach(() => {
 });
 
 describe("collectCommits", () => {
-  it("reads repos pushed since the day, filters by owner type and follows pagination", async () => {
+  it("reads personal repos pushed since the day and follows pagination", async () => {
     const requested = mockGitHub({
       "/user/repos?": () =>
-        json([repo("me/app", "User", "2026-10-15T09:00:00Z"), repo("acme/api", "Organization", "2026-10-14T18:00:00Z")], {
+        json([repo("me/app", "User", "2026-10-15T09:00:00Z"), repo("acme/fork", "Organization", "2026-10-14T18:00:00Z")], {
           headers: { link: '<https://api.github.com/user/repos?page=2>; rel="next"' },
         }),
       "/user/repos?page=2": () =>
@@ -59,14 +59,14 @@ describe("collectCommits", () => {
       "/repos/me/docs/commits": () => new Response(null, { status: 409 }),
     });
 
-    const commits = await collectCommits("token", { since, until, repoTypes: ["USER"] });
+    const commits = await collectCommits("token", { since, until, scope: { repoTypes: ["USER"], orgs: [], orgRepos: [] } });
 
     expect(commits).toEqual([
       { repo: "me/app", date: "2026-10-14T09:00:00Z", message: "Init" },
       { repo: "me/app", date: "2026-10-14T15:00:00Z", message: "Add login page\n\nWith a form." },
     ]);
-    // The org repo is filtered out, and "me/old" was pushed before the day.
-    expect(requested.some((url) => url.includes("acme/api") || url.includes("me/old"))).toBe(false);
+    // An organization's repo is not personal, and "me/old" was pushed before the day.
+    expect(requested.some((url) => url.includes("acme/fork") || url.includes("me/old"))).toBe(false);
     const commitsUrl = new URL(requested.find((url) => url.includes("/repos/me/app/commits?author")) ?? "");
     expect(Object.fromEntries(commitsUrl.searchParams)).toMatchObject({
       author: "me",
@@ -75,9 +75,31 @@ describe("collectCommits", () => {
     });
   });
 
+  it("reads all recent repos of a chosen organization, and only the picked ones of another", async () => {
+    const requested = mockGitHub({
+      "/user": () => json({ login: "me" }),
+      "/orgs/acme/repos?": () =>
+        json([repo("acme/api", "Organization", "2026-10-14T12:00:00Z"), repo("acme/legacy", "Organization", "2026-09-01T00:00:00Z")]),
+      "/repos/acme/api/commits": () => json([commit("c", "Fix auth", "2026-10-14T11:00:00Z")]),
+      "/repos/beta/web/commits": () => json([commit("d", "Add footer", "2026-10-14T10:00:00Z")]),
+    });
+
+    const commits = await collectCommits("token", {
+      since,
+      until,
+      scope: { repoTypes: ["ORG"], orgs: ["acme", "beta"], orgRepos: ["beta/web"] },
+    });
+
+    expect(commits.map(({ repo }) => repo)).toEqual(["beta/web", "acme/api"]);
+    // beta is limited to its picked repo, so its repository list is never read.
+    expect(requested.some((url) => url.includes("/orgs/beta/repos") || url.includes("/user/repos"))).toBe(false);
+  });
+
   it("explains an expired token", async () => {
     mockGitHub({ "/user": () => new Response(null, { status: 401 }) });
 
-    await expect(collectCommits("token", { since, until, repoTypes: ["USER"] })).rejects.toThrow("Reconnect GitHub");
+    await expect(
+      collectCommits("token", { since, until, scope: { repoTypes: ["USER"], orgs: [], orgRepos: [] } }),
+    ).rejects.toThrow("Reconnect GitHub");
   });
 });

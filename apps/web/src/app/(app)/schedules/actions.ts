@@ -1,5 +1,6 @@
 "use server";
 
+import { repoScopeSchema } from "@recap/core/repo-scope";
 import { computeNextRunAt } from "@recap/core/schedules/next-run";
 import { prisma } from "@recap/db";
 import { revalidatePath } from "next/cache";
@@ -21,7 +22,7 @@ const scheduleSchema = z
       .transform((days) => [...new Set(days)].sort()),
     timeOfDay: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Pick a valid time."),
     timezone: z.string().refine(isValidTimezone, "Unknown timezone."),
-    repoTypes: z.array(z.enum(["USER", "ORG"])).min(1, "Choose at least one repository scope."),
+    scope: repoScopeSchema,
     language: z.string().refine(isSupportedLanguage, "Unsupported language."),
     mailboxId: z.string().min(1).nullable(),
     managerIds: z.array(z.string().min(1)),
@@ -43,7 +44,11 @@ export async function saveScheduleAction(
     daysOfWeek: formData.getAll("daysOfWeek"),
     timeOfDay: formData.get("timeOfDay"),
     timezone: formData.get("timezone"),
-    repoTypes: formData.getAll("repoTypes"),
+    scope: {
+      repoTypes: formData.getAll("repoTypes"),
+      orgs: formData.getAll("orgs"),
+      orgRepos: formData.getAll("orgRepos"),
+    },
     language: formData.get("language"),
     mailboxId: formData.get("mailboxId") || null,
     managerIds: formData.getAll("managerIds"),
@@ -51,7 +56,7 @@ export async function saveScheduleAction(
     enabled: formData.get("enabled") === "on",
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid schedule." };
-  const { managerIds, mailboxId, ...fields } = parsed.data;
+  const { managerIds, mailboxId, scope, ...fields } = parsed.data;
 
   const [mailbox, managerCount, existing] = await Promise.all([
     mailboxId ? prisma.mailbox.findFirst({ where: { id: mailboxId, userId: user.id }, select: { id: true } }) : null,
@@ -64,6 +69,7 @@ export async function saveScheduleAction(
 
   const data = {
     ...fields,
+    ...scope,
     mailboxId,
     nextRunAt: fields.enabled ? computeNextRunAt(fields, new Date()) : null,
   };

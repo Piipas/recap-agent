@@ -1,9 +1,7 @@
-import type { RepoType } from "@recap/db";
+import { githubError, githubPages, githubRequest } from "@recap/core/github";
+import { type RepoScope, reposOfOrg } from "@recap/core/repo-scope";
 import { z } from "zod";
 
-const API = "https://api.github.com";
-const HEADERS = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
-const REQUEST_TIMEOUT_MS = 30_000;
 /** Repositories whose commits are fetched at the same time. */
 const REPO_CONCURRENCY = 5;
 
@@ -24,52 +22,57 @@ const commitSchema = z.object({
   }),
 });
 
-const request = (token: string, url: string) =>
-  fetch(url.startsWith("https://") ? url : `${API}${url}`, {
-    headers: { ...HEADERS, Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-
-const fail = async (response: Response, what: string) => {
-  if (response.status === 401) return new Error("GitHub rejected the saved token. Reconnect GitHub in Connections.");
-  if (response.status === 403 || response.status === 429) {
-    return new Error("GitHub rate limit reached while reading commits. Try again later.");
-  }
-  return new Error(`GitHub returned HTTP ${response.status} while reading ${what}.`);
-};
-
-const nextPage = (response: Response) => /<([^>]+)>;\s*rel="next"/.exec(response.headers.get("link") ?? "")?.[1];
-
-/** Pages of a GitHub list endpoint, following `Link: rel="next"`. */
-async function* pages<T>(token: string, url: string, schema: z.ZodType<T>, what: string): AsyncGenerator<T[]> {
-  for (let next: string | undefined = url; next; ) {
-    const response = await request(token, next);
-    // 409: the repository is empty.
-    if (response.status === 409) return;
-    if (!response.ok) throw await fail(response, what);
-    yield z.array(schema).parse(await response.json());
-    next = nextPage(response);
-  }
-}
-
-/** Repositories the user can access with a push after `since`, newest push first. */
-const recentRepos = async (token: string, since: Date, repoTypes: RepoType[]) => {
-  const ownerTypes = new Set<string>(repoTypes.map((type) => (type === "USER" ? "User" : "Organization")));
-  const repos: string[] = [];
-
-  for await (const page of pages(
-    token,
-    "/user/repos?affiliation=owner,collaborator,organization_member&sort=pushed&direction=desc&per_page=100",
-    repoSchema,
-    "repositories",
-  )) {
+/**
+ * Names of the repositories in a list sorted by push date (newest first) that were
+ * pushed after `since`. Paging stops at the first one last pushed before it.
+ */
+const pushedSince = async (
+  token: string,
+  url: string,
+  since: Date,
+  what: string,
+  keep: (repo: z.infer<typeof repoSchema>) => boolean = () => true,
+) => {
+  const names: string[] = [];
+  for await (const page of githubPages(token, url, repoSchema, what)) {
     for (const repo of page) {
-      // Sorted by push date: once a repo was last pushed before the day, so were all the rest.
-      if (!repo.pushed_at || new Date(repo.pushed_at) < since) return repos;
-      if (ownerTypes.has(repo.owner.type)) repos.push(repo.full_name);
+      if (!repo.pushed_at || new Date(repo.pushed_at) < since) return names;
+      if (keep(repo)) names.push(repo.full_name);
     }
   }
-  return repos;
+  return names;
+};
+
+/** The repositories a run reads: personal ones with a recent push, and the chosen organizations' ones. */
+const reposToRead = async (token: string, since: Date, scope: RepoScope) => {
+  const repos = new Set<string>();
+
+  if (scope.repoTypes.includes("USER")) {
+    const personal = await pushedSince(
+      token,
+      "/user/repos?affiliation=owner,collaborator&sort=pushed&direction=desc&per_page=100",
+      since,
+      "your repositories",
+      (repo) => repo.owner.type === "User",
+    );
+    for (const name of personal) repos.add(name);
+  }
+
+  if (scope.repoTypes.includes("ORG")) {
+    for (const org of scope.orgs) {
+      const picked = reposOfOrg(scope.orgRepos, org);
+      const names = picked.length
+        ? picked
+        : await pushedSince(
+            token,
+            `/orgs/${encodeURIComponent(org)}/repos?type=all&sort=pushed&direction=desc&per_page=100`,
+            since,
+            `the repositories of ${org}`,
+          );
+      for (const name of names) repos.add(name);
+    }
+  }
+  return [...repos];
 };
 
 const repoCommits = async (token: string, repo: string, author: string, since: Date, until: Date) => {
@@ -80,25 +83,25 @@ const repoCommits = async (token: string, repo: string, author: string, since: D
     per_page: "100",
   });
   const commits: (z.infer<typeof commitSchema> & { repo: string })[] = [];
-  for await (const page of pages(token, `/repos/${repo}/commits?${params}`, commitSchema, `commits of ${repo}`)) {
+  for await (const page of githubPages(token, `/repos/${repo}/commits?${params}`, commitSchema, repo)) {
     commits.push(...page.map((commit) => ({ ...commit, repo })));
   }
   return commits;
 };
 
 /**
- * The user's commits on the default branch of each matching repository, between
+ * The user's commits on the default branch of each repository in scope, between
  * `since` (inclusive) and `until` (exclusive), oldest first.
  */
 export const collectCommits = async (
   token: string,
-  { since, until, repoTypes }: { since: Date; until: Date; repoTypes: RepoType[] },
+  { since, until, scope }: { since: Date; until: Date; scope: RepoScope },
 ): Promise<DayCommit[]> => {
-  const profile = await request(token, "/user");
-  if (!profile.ok) throw await fail(profile, "the GitHub profile");
+  const profile = await githubRequest(token, "/user");
+  if (!profile.ok) throw githubError(profile, "your GitHub profile");
   const { login } = z.object({ login: z.string() }).parse(await profile.json());
 
-  const repos = await recentRepos(token, since, repoTypes);
+  const repos = await reposToRead(token, since, scope);
   const found = [];
   for (let index = 0; index < repos.length; index += REPO_CONCURRENCY) {
     const batch = repos.slice(index, index + REPO_CONCURRENCY);
